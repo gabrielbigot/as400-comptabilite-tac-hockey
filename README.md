@@ -1,4 +1,10 @@
-# Logiciel de Comptabilité AS/400
+# 🏒 AS/400 Comptabilité - TAC Hockey Club
+
+Application de comptabilité inspirée du style AS/400 pour la gestion comptable du club de hockey TAC.
+
+> **⚠️ IMPORTANT:** Si vous restaurez un projet Supabase supprimé, consultez d'abord le fichier `GUIDE_RESTAURATION_SUPABASE.md` et la `CHECKLIST_RESTAURATION.md`
+
+---
 
 Cette application reproduit fidèlement l'interface et les fonctionnalités d'un système de comptabilité AS/400.
 
@@ -11,6 +17,39 @@ Ce logiciel est une réplique exacte de l'interface AS/400 que vous avez fournie
 - **Navigation par menus** : Système de navigation identique à l'original
 - **Écrans de comptabilité** : Tous les écrans principaux reproduits
 - **Fonctionnalités de base** : Saisie d'écritures, gestion des comptes
+- **Backend Supabase** : Base de données PostgreSQL avec authentification sécurisée
+
+## 🚀 Démarrage Rapide
+
+### 📖 Restauration d'un Projet Supabase Supprimé
+
+Si vous avez supprimé votre projet Supabase par erreur, suivez ces étapes :
+
+1. **Lisez le guide complet** : `GUIDE_RESTAURATION_SUPABASE.md`
+2. **Suivez la checklist** : `CHECKLIST_RESTAURATION.md`
+3. **Exécutez le script SQL** : `supabase/migrations/00_complete_schema.sql`
+4. **(Optionnel) Ajoutez le plan comptable** : `supabase/migrations/01_sample_data_plan_comptable.sql`
+5. **Configurez vos credentials** : Copiez `supabase-client.TEMPLATE.js` vers `supabase-client.js` et modifiez-le
+
+### 🆕 Nouveau Projet
+
+1. Créez un compte sur [Supabase](https://supabase.com)
+2. Créez un nouveau projet
+3. Exécutez le script SQL de création des tables
+4. Configurez `supabase-client.js` avec vos credentials
+5. Ouvrez `index.html` dans votre navigateur
+
+## 🗄️ Structure de la Base de Données
+
+### Tables Principales
+
+1. **companies** - Sociétés (multi-tenancy)
+2. **accounts** - Plan comptable
+3. **journals** - Journaux comptables (Achats, Ventes, Banque, etc.)
+4. **journal_entries** - Écritures comptables
+5. **regles** - Règles de comptabilisation automatique
+
+Toutes les tables sont protégées par **Row Level Security (RLS)** pour garantir l'isolation des données entre utilisateurs.
 
 ## Structure de l'application
 
