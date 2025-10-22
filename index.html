@@ -490,6 +490,69 @@
         </div>
     </div>
 
+    <!-- Écran Rapports -->
+    <div id="reports-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div>Rapports Comptables</div>
+            <br>
+
+            <!-- Sélection du type de rapport -->
+            <div style="margin-bottom: 15px;">
+                <span>Type de rapport: </span>
+                <select id="report-type" class="field-input" style="width: 30ch; background-color: #333; color: #FFFFFF; border: 1px solid #00FF00; padding: 5px;">
+                    <option value="">-- Sélectionnez un rapport --</option>
+                    <option value="balance">Balance des comptes</option>
+                    <option value="ledger">Grand livre</option>
+                    <option value="centralized">Journal centralisateur</option>
+                </select>
+            </div>
+
+            <!-- Filtres de période -->
+            <div class="filter-section" style="margin-bottom: 15px;">
+                <span>Période du: </span>
+                <input type="date" id="report-start-date" class="field-input" style="width: 15ch;">
+                <span style="margin-left: 20px;">au: </span>
+                <input type="date" id="report-end-date" class="field-input" style="width: 15ch;">
+                <button id="generate-report-btn" class="btn" style="margin-left: 20px;">Générer le rapport</button>
+            </div>
+
+            <!-- Filtre supplémentaire pour le grand livre -->
+            <div id="ledger-account-filter" style="margin-bottom: 15px; display: none;">
+                <span>Compte (optionnel): </span>
+                <input type="text" id="ledger-account-number" class="field-input" placeholder="Numéro de compte" style="width: 15ch;">
+                <span style="margin-left: 10px; color: #FFFF00; font-size: 0.9em;">(Laissez vide pour tous les comptes)</span>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div style="margin-bottom: 15px;">
+                <button id="export-report-btn" class="btn" style="display: none;">Exporter CSV</button>
+                <button id="print-report-btn" class="btn" style="margin-left: 10px; display: none;">Imprimer</button>
+            </div>
+
+            <!-- Zone d'affichage du rapport -->
+            <div id="report-content" style="border: 1px solid #00FF00; padding: 10px; min-height: 300px; max-height: 400px; overflow-y: auto;">
+                <span class="no-data">Sélectionnez un type de rapport et cliquez sur "Générer le rapport"</span>
+            </div>
+
+            <div class="footer-container">
+                <div class="status-bar"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Écran Liste des Lots -->
     <div id="batches-screen" class="screen">
         <div class="toolbar">

@@ -12,6 +12,7 @@ class AS400App {
         this.currentlyEditingLineIndex = null; // Pour suivre la ligne en cours de modification dans un lot
         this.refreshCallback = null; // Pour rafraîchir la vue après une modification
         this.displayedEntries = []; // Pour stocker les écritures actuellement affichées
+        this.currentReport = null; // Pour stocker les données du rapport actuel
         this.init();
     }
 
@@ -187,6 +188,27 @@ console.log("Initializing AS400App");
         const exportAccountsBtn = document.getElementById('export-accounts-btn');
         if (exportAccountsBtn) {
             exportAccountsBtn.addEventListener('click', () => this.exportAccounts());
+        }
+
+        // Reports screen
+        const reportTypeSelect = document.getElementById('report-type');
+        if (reportTypeSelect) {
+            reportTypeSelect.addEventListener('change', (e) => this.handleReportTypeChange(e.target.value));
+        }
+
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        if (generateReportBtn) {
+            generateReportBtn.addEventListener('click', () => this.generateReport());
+        }
+
+        const exportReportBtn = document.getElementById('export-report-btn');
+        if (exportReportBtn) {
+            exportReportBtn.addEventListener('click', () => this.exportReport());
+        }
+
+        const printReportBtn = document.getElementById('print-report-btn');
+        if (printReportBtn) {
+            printReportBtn.addEventListener('click', () => this.printReport());
         }
     }
 
@@ -419,6 +441,9 @@ console.log("Initializing AS400App");
             case '3':
                 this.showScreen('entries-screen', [...basePath, 'Écritures']);
                 break;
+            case '4':
+                this.showScreen('reports-screen', [...basePath, 'Éditions']);
+                break;
             default:
                 this.showMessage('Option invalide');
         }
@@ -538,6 +563,9 @@ console.log("Initializing AS400App");
             if (screenId === 'batches-screen') {
                 this.loadJournalsForBatchFilter();
                 this.loadBatchesList();
+            }
+            if (screenId === 'reports-screen') {
+                this.initializeReportsScreen();
             }
             if (screenId === 'entry-input-screen') {
                 document.getElementById('date-comptable').value = '';
@@ -2134,6 +2162,581 @@ console.log("Initializing AS400App");
             this.showMessage(`Erreur lors de l'export: ${error.message}`);
             console.error('Error exporting accounts:', error);
         }
+    }
+
+    // ===== REPORTS FUNCTIONS =====
+
+    initializeReportsScreen() {
+        // Reset form
+        document.getElementById('report-type').value = '';
+        document.getElementById('report-start-date').value = '';
+        document.getElementById('report-end-date').value = '';
+        document.getElementById('ledger-account-number').value = '';
+        document.getElementById('ledger-account-filter').style.display = 'none';
+        document.getElementById('export-report-btn').style.display = 'none';
+        document.getElementById('print-report-btn').style.display = 'none';
+        document.getElementById('report-content').innerHTML = '<span class="no-data">Sélectionnez un type de rapport et cliquez sur "Générer le rapport"</span>';
+        this.currentReport = null;
+    }
+
+    handleReportTypeChange(reportType) {
+        const ledgerFilter = document.getElementById('ledger-account-filter');
+        if (reportType === 'ledger') {
+            ledgerFilter.style.display = 'block';
+        } else {
+            ledgerFilter.style.display = 'none';
+        }
+    }
+
+    async generateReport() {
+        const reportType = document.getElementById('report-type').value;
+
+        if (!reportType) {
+            this.showMessage('Veuillez sélectionner un type de rapport.');
+            return;
+        }
+
+        this.showMessage('Génération du rapport en cours...');
+
+        try {
+            switch (reportType) {
+                case 'balance':
+                    await this.generateBalanceReport();
+                    break;
+                case 'ledger':
+                    await this.generateLedgerReport();
+                    break;
+                case 'centralized':
+                    await this.generateCentralizedReport();
+                    break;
+                default:
+                    this.showMessage('Type de rapport non reconnu.');
+            }
+        } catch (error) {
+            this.showMessage(`Erreur: ${error.message}`);
+            console.error('Error generating report:', error);
+        }
+    }
+
+    async generateBalanceReport() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            this.showMessage('Utilisateur ou société non défini.');
+            return;
+        }
+
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+
+        // Get all entries
+        let query = supabase
+            .from('journal_entries')
+            .select('compte, s, montant, date')
+            .eq('user_id', user.id)
+            .eq('company_id', this.selectedCompany.id);
+
+        const { data: entries, error } = await query;
+
+        if (error) throw error;
+
+        // Filter by date if specified
+        let filteredEntries = entries;
+        if (startDate || endDate) {
+            filteredEntries = entries.filter(entry => {
+                const entryDate = this.parseDateString(entry.date);
+                let valid = true;
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    valid = valid && entryDate >= filterStartDate;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    valid = valid && entryDate <= filterEndDate;
+                }
+                return valid;
+            });
+        }
+
+        // Group by account
+        const accountsMap = new Map();
+        filteredEntries.forEach(entry => {
+            if (!accountsMap.has(entry.compte)) {
+                accountsMap.set(entry.compte, {
+                    account: entry.compte,
+                    debit: 0,
+                    credit: 0
+                });
+            }
+            const account = accountsMap.get(entry.compte);
+            const amount = parseFloat(entry.montant) || 0;
+            if (entry.s.toUpperCase() !== 'C') {
+                account.debit += amount;
+            } else {
+                account.credit += amount;
+            }
+        });
+
+        // Get account labels
+        const accountNumbers = Array.from(accountsMap.keys());
+        const { data: accountsData, error: accountsError } = await supabase
+            .from('accounts')
+            .select('account_number, label')
+            .in('account_number', accountNumbers);
+
+        if (accountsError) throw accountsError;
+
+        const accountLabelsMap = new Map();
+        accountsData.forEach(acc => accountLabelsMap.set(acc.account_number, acc.label));
+
+        // Convert to array and sort
+        const balanceData = Array.from(accountsMap.values())
+            .map(item => ({
+                ...item,
+                label: accountLabelsMap.get(item.account) || 'Inconnu',
+                balance: item.debit - item.credit
+            }))
+            .sort((a, b) => a.account.localeCompare(b.account));
+
+        // Calculate totals
+        const totalDebit = balanceData.reduce((sum, item) => sum + item.debit, 0);
+        const totalCredit = balanceData.reduce((sum, item) => sum + item.credit, 0);
+
+        // Display report
+        const reportContent = document.getElementById('report-content');
+        let html = '<div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #FFFF00;">';
+        html += 'BALANCE DES COMPTES';
+        if (startDate || endDate) {
+            html += '<br>Période: ';
+            if (startDate) html += `du ${new Date(startDate).toLocaleDateString('fr-FR')} `;
+            if (endDate) html += `au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+        }
+        html += '</div>';
+
+        html += '<div class="table-header" style="border-bottom: 1px solid #00FF00; padding-bottom: 5px;">';
+        html += '<span style="display: inline-block; width: 12ch;">Compte</span>';
+        html += '<span style="display: inline-block; width: 35ch;">Libellé</span>';
+        html += '<span style="display: inline-block; width: 15ch; text-align: right;">Débit</span>';
+        html += '<span style="display: inline-block; width: 15ch; text-align: right;">Crédit</span>';
+        html += '<span style="display: inline-block; width: 15ch; text-align: right;">Solde</span>';
+        html += '</div>';
+
+        balanceData.forEach(item => {
+            html += '<div class="table-row" style="padding: 2px 0;">';
+            html += `<span style="display: inline-block; width: 12ch;">${item.account}</span>`;
+            html += `<span style="display: inline-block; width: 35ch;">${item.label}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(item.debit)}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(item.credit)}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(item.balance)}</span>`;
+            html += '</div>';
+        });
+
+        html += '<div style="border-top: 1px solid #00FF00; margin-top: 10px; padding-top: 5px; font-weight: bold;">';
+        html += `<span style="display: inline-block; width: 47ch;">TOTAUX</span>`;
+        html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalDebit)}</span>`;
+        html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalCredit)}</span>`;
+        html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalDebit - totalCredit)}</span>`;
+        html += '</div>';
+
+        reportContent.innerHTML = html;
+
+        // Store report data for export
+        this.currentReport = {
+            type: 'balance',
+            data: balanceData,
+            totals: { debit: totalDebit, credit: totalCredit, balance: totalDebit - totalCredit },
+            period: { startDate, endDate }
+        };
+
+        // Show export/print buttons
+        document.getElementById('export-report-btn').style.display = 'inline-block';
+        document.getElementById('print-report-btn').style.display = 'inline-block';
+
+        this.showMessage('Rapport généré avec succès !');
+    }
+
+    async generateLedgerReport() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            this.showMessage('Utilisateur ou société non défini.');
+            return;
+        }
+
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+        const accountFilter = document.getElementById('ledger-account-number').value.trim();
+
+        // Get all entries
+        let query = supabase
+            .from('journal_entries')
+            .select('compte, date, libelle, s, montant')
+            .eq('user_id', user.id)
+            .eq('company_id', this.selectedCompany.id);
+
+        if (accountFilter) {
+            query = query.eq('compte', accountFilter);
+        }
+
+        const { data: entries, error } = await query.order('compte').order('date');
+
+        if (error) throw error;
+
+        // Filter by date if specified
+        let filteredEntries = entries;
+        if (startDate || endDate) {
+            filteredEntries = entries.filter(entry => {
+                const entryDate = this.parseDateString(entry.date);
+                let valid = true;
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    valid = valid && entryDate >= filterStartDate;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    valid = valid && entryDate <= filterEndDate;
+                }
+                return valid;
+            });
+        }
+
+        if (filteredEntries.length === 0) {
+            document.getElementById('report-content').innerHTML = '<span class="no-data">Aucune écriture trouvée pour les critères sélectionnés</span>';
+            return;
+        }
+
+        // Group by account
+        const accountsMap = new Map();
+        filteredEntries.forEach(entry => {
+            if (!accountsMap.has(entry.compte)) {
+                accountsMap.set(entry.compte, []);
+            }
+            accountsMap.get(entry.compte).push(entry);
+        });
+
+        // Get account labels
+        const accountNumbers = Array.from(accountsMap.keys());
+        const { data: accountsData, error: accountsError } = await supabase
+            .from('accounts')
+            .select('account_number, label')
+            .in('account_number', accountNumbers);
+
+        if (accountsError) throw accountsError;
+
+        const accountLabelsMap = new Map();
+        accountsData.forEach(acc => accountLabelsMap.set(acc.account_number, acc.label));
+
+        // Display report
+        const reportContent = document.getElementById('report-content');
+        let html = '<div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #FFFF00;">';
+        html += 'GRAND LIVRE';
+        if (startDate || endDate) {
+            html += '<br>Période: ';
+            if (startDate) html += `du ${new Date(startDate).toLocaleDateString('fr-FR')} `;
+            if (endDate) html += `au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+        }
+        if (accountFilter) {
+            html += `<br>Compte: ${accountFilter}`;
+        }
+        html += '</div>';
+
+        const ledgerData = [];
+
+        accountsMap.forEach((entries, accountNumber) => {
+            const label = accountLabelsMap.get(accountNumber) || 'Inconnu';
+
+            html += `<div style="margin-top: 20px; border-top: 2px solid #00FF00; padding-top: 10px;">`;
+            html += `<div style="font-weight: bold; color: #FFFF00;">Compte ${accountNumber} - ${label}</div>`;
+            html += '<div class="table-header" style="border-bottom: 1px solid #00FF00; padding: 5px 0; margin-top: 5px;">';
+            html += '<span style="display: inline-block; width: 12ch;">Date</span>';
+            html += '<span style="display: inline-block; width: 40ch;">Libellé</span>';
+            html += '<span style="display: inline-block; width: 15ch; text-align: right;">Débit</span>';
+            html += '<span style="display: inline-block; width: 15ch; text-align: right;">Crédit</span>';
+            html += '</div>';
+
+            let totalDebit = 0;
+            let totalCredit = 0;
+
+            entries.forEach(entry => {
+                const amount = parseFloat(entry.montant) || 0;
+                const isDebit = entry.s.toUpperCase() !== 'C';
+
+                if (isDebit) totalDebit += amount;
+                else totalCredit += amount;
+
+                html += '<div class="table-row" style="padding: 2px 0;">';
+                html += `<span style="display: inline-block; width: 12ch;">${this.formatDateForDisplay(entry.date)}</span>`;
+                html += `<span style="display: inline-block; width: 40ch;">${entry.libelle}</span>`;
+                html += `<span style="display: inline-block; width: 15ch; text-align: right;">${isDebit ? this.formatAmount(amount) : ''}</span>`;
+                html += `<span style="display: inline-block; width: 15ch; text-align: right;">${!isDebit ? this.formatAmount(amount) : ''}</span>`;
+                html += '</div>';
+
+                ledgerData.push({
+                    compte: accountNumber,
+                    label: label,
+                    date: this.formatDateForDisplay(entry.date),
+                    libelle: entry.libelle,
+                    debit: isDebit ? amount : 0,
+                    credit: !isDebit ? amount : 0
+                });
+            });
+
+            html += '<div style="border-top: 1px solid #00FF00; margin-top: 5px; padding-top: 5px; font-weight: bold;">';
+            html += `<span style="display: inline-block; width: 52ch;">Total compte ${accountNumber}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalDebit)}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalCredit)}</span>`;
+            html += '</div>';
+            html += `<div style="font-weight: bold; margin-top: 5px;">Solde: ${this.formatAmount(totalDebit - totalCredit)}</div>`;
+            html += '</div>';
+        });
+
+        reportContent.innerHTML = html;
+
+        // Store report data for export
+        this.currentReport = {
+            type: 'ledger',
+            data: ledgerData,
+            period: { startDate, endDate },
+            accountFilter
+        };
+
+        // Show export/print buttons
+        document.getElementById('export-report-btn').style.display = 'inline-block';
+        document.getElementById('print-report-btn').style.display = 'inline-block';
+
+        this.showMessage('Rapport généré avec succès !');
+    }
+
+    async generateCentralizedReport() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            this.showMessage('Utilisateur ou société non défini.');
+            return;
+        }
+
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+
+        // Get all entries with journal info
+        let query = supabase
+            .from('journal_entries')
+            .select('journal_id, s, montant, date')
+            .eq('user_id', user.id)
+            .eq('company_id', this.selectedCompany.id);
+
+        const { data: entries, error } = await query;
+
+        if (error) throw error;
+
+        // Filter by date if specified
+        let filteredEntries = entries;
+        if (startDate || endDate) {
+            filteredEntries = entries.filter(entry => {
+                const entryDate = this.parseDateString(entry.date);
+                let valid = true;
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    valid = valid && entryDate >= filterStartDate;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    valid = valid && entryDate <= filterEndDate;
+                }
+                return valid;
+            });
+        }
+
+        // Group by journal
+        const journalsMap = new Map();
+        filteredEntries.forEach(entry => {
+            if (!journalsMap.has(entry.journal_id)) {
+                journalsMap.set(entry.journal_id, {
+                    journal_id: entry.journal_id,
+                    debit: 0,
+                    credit: 0,
+                    count: 0
+                });
+            }
+            const journal = journalsMap.get(entry.journal_id);
+            journal.count++;
+            const amount = parseFloat(entry.montant) || 0;
+            if (entry.s.toUpperCase() !== 'C') {
+                journal.debit += amount;
+            } else {
+                journal.credit += amount;
+            }
+        });
+
+        // Get journal names
+        const journalIds = Array.from(journalsMap.keys());
+        const { data: journalsData, error: journalsError } = await supabase
+            .from('journals')
+            .select('id, code, name')
+            .in('id', journalIds);
+
+        if (journalsError) throw journalsError;
+
+        const journalNamesMap = new Map();
+        journalsData.forEach(j => journalNamesMap.set(j.id, `${j.code} - ${j.name}`));
+
+        // Convert to array
+        const centralizedData = Array.from(journalsMap.values())
+            .map(item => ({
+                ...item,
+                journal_name: journalNamesMap.get(item.journal_id) || 'Inconnu'
+            }))
+            .sort((a, b) => a.journal_name.localeCompare(b.journal_name));
+
+        // Calculate totals
+        const totalDebit = centralizedData.reduce((sum, item) => sum + item.debit, 0);
+        const totalCredit = centralizedData.reduce((sum, item) => sum + item.credit, 0);
+        const totalCount = centralizedData.reduce((sum, item) => sum + item.count, 0);
+
+        // Display report
+        const reportContent = document.getElementById('report-content');
+        let html = '<div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #FFFF00;">';
+        html += 'JOURNAL CENTRALISATEUR';
+        if (startDate || endDate) {
+            html += '<br>Période: ';
+            if (startDate) html += `du ${new Date(startDate).toLocaleDateString('fr-FR')} `;
+            if (endDate) html += `au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+        }
+        html += '</div>';
+
+        html += '<div class="table-header" style="border-bottom: 1px solid #00FF00; padding-bottom: 5px;">';
+        html += '<span style="display: inline-block; width: 30ch;">Journal</span>';
+        html += '<span style="display: inline-block; width: 12ch; text-align: center;">Nb écritures</span>';
+        html += '<span style="display: inline-block; width: 18ch; text-align: right;">Débit</span>';
+        html += '<span style="display: inline-block; width: 18ch; text-align: right;">Crédit</span>';
+        html += '</div>';
+
+        centralizedData.forEach(item => {
+            html += '<div class="table-row" style="padding: 2px 0;">';
+            html += `<span style="display: inline-block; width: 30ch;">${item.journal_name}</span>`;
+            html += `<span style="display: inline-block; width: 12ch; text-align: center;">${item.count}</span>`;
+            html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(item.debit)}</span>`;
+            html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(item.credit)}</span>`;
+            html += '</div>';
+        });
+
+        html += '<div style="border-top: 1px solid #00FF00; margin-top: 10px; padding-top: 5px; font-weight: bold;">';
+        html += `<span style="display: inline-block; width: 30ch;">TOTAUX</span>`;
+        html += `<span style="display: inline-block; width: 12ch; text-align: center;">${totalCount}</span>`;
+        html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(totalDebit)}</span>`;
+        html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(totalCredit)}</span>`;
+        html += '</div>';
+
+        reportContent.innerHTML = html;
+
+        // Store report data for export
+        this.currentReport = {
+            type: 'centralized',
+            data: centralizedData,
+            totals: { debit: totalDebit, credit: totalCredit, count: totalCount },
+            period: { startDate, endDate }
+        };
+
+        // Show export/print buttons
+        document.getElementById('export-report-btn').style.display = 'inline-block';
+        document.getElementById('print-report-btn').style.display = 'inline-block';
+
+        this.showMessage('Rapport généré avec succès !');
+    }
+
+    exportReport() {
+        if (!this.currentReport) {
+            this.showMessage('Aucun rapport à exporter.');
+            return;
+        }
+
+        let exportData = [];
+        let filename = '';
+
+        switch (this.currentReport.type) {
+            case 'balance':
+                exportData = this.currentReport.data.map(item => ({
+                    'Compte': item.account,
+                    'Libellé': item.label,
+                    'Débit': this.formatAmount(item.debit),
+                    'Crédit': this.formatAmount(item.credit),
+                    'Solde': this.formatAmount(item.balance)
+                }));
+                filename = `balance_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
+
+            case 'ledger':
+                exportData = this.currentReport.data.map(item => ({
+                    'Compte': item.compte,
+                    'Libellé': item.label,
+                    'Date': item.date,
+                    'Description': item.libelle,
+                    'Débit': this.formatAmount(item.debit),
+                    'Crédit': this.formatAmount(item.credit)
+                }));
+                filename = `grand_livre_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
+
+            case 'centralized':
+                exportData = this.currentReport.data.map(item => ({
+                    'Journal': item.journal_name,
+                    'Nombre écritures': item.count,
+                    'Débit': this.formatAmount(item.debit),
+                    'Crédit': this.formatAmount(item.credit)
+                }));
+                filename = `journal_centralisateur_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
+        }
+
+        this.exportToCSV(exportData, filename);
+    }
+
+    printReport() {
+        if (!this.currentReport) {
+            this.showMessage('Aucun rapport à imprimer.');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        const reportContent = document.getElementById('report-content').innerHTML;
+
+        const html = `
+            <html>
+                <head>
+                    <title>Rapport - ${this.selectedCompany.name}</title>
+                    <style>
+                        body {
+                            font-family: 'Courier New', monospace;
+                            padding: 20px;
+                        }
+                        .table-header {
+                            font-weight: bold;
+                            border-bottom: 1px solid #000;
+                            padding-bottom: 5px;
+                        }
+                        .table-row {
+                            padding: 2px 0;
+                        }
+                        @media print {
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>${this.selectedCompany.name}</h2>
+                    ${reportContent}
+                    <p style="margin-top: 30px;">Imprimé le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
     }
 }
 
