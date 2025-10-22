@@ -92,3 +92,6 @@ Thumbs.db
 
 # Supabase local development
 .supabase/
+
+# Credentials Supabase - NE JAMAIS COMMITTER
+supabase-client.js

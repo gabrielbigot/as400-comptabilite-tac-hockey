@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Configuration Supabase</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #ddd;
+            background: #f9f9f9;
+        }
+        .test-item.success {
+            border-left-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        .test-item.error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .test-item.warning {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+        .test-item h3 {
+            margin-top: 0;
+        }
+        .status {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .status.success { color: #4CAF50; }
+        .status.error { color: #f44336; }
+        .status.warning { color: #ff9800; }
+        code {
+            background: #333;
+            color: #0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Test de Configuration Supabase</h1>
+
+        <div class="info-box">
+            <strong>📌 Ce test vérifie que votre configuration Supabase est correcte</strong>
+            <p>Cliquez sur le bouton ci-dessous pour lancer le diagnostic.</p>
+        </div>
+
+        <button id="runTest" onclick="runAllTests()">▶️ Lancer le Test</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script>
+        async function runAllTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading"></div> Tests en cours...';
+
+            let html = '';
+            let allPassed = true;
+
+            // Test 1: Vérifier que supabase-client.js est chargé
+            html += '<div class="test-item ' + (window.supabase ? 'success' : 'error') + '">';
+            html += '<h3>Test 1: Chargement de supabase-client.js</h3>';
+            if (window.supabase) {
+                html += '<p class="status success">✅ SUCCESS</p>';
+                html += '<p>Le fichier supabase-client.js est chargé correctement.</p>';
+            } else {
+                html += '<p class="status error">❌ ERREUR</p>';
+                html += '<p>Le fichier supabase-client.js n\'est pas chargé.</p>';
+                html += '<p><strong>Solution :</strong> Vérifiez que le fichier existe dans le même dossier.</p>';
+                allPassed = false;
+            }
+            html += '</div>';
+
+            if (window.supabase) {
+                // Test 2: Vérifier l'URL
+                const supabaseUrl = window.supabase.supabaseUrl;
+                const isLocalhost = supabaseUrl.includes('127.0.0.1') || supabaseUrl.includes('localhost');
+
+                html += '<div class="test-item ' + (isLocalhost ? 'error' : 'success') + '">';
+                html += '<h3>Test 2: URL Supabase</h3>';
+                if (isLocalhost) {
+                    html += '<p class="status error">❌ ERREUR</p>';
+                    html += '<p>Vous utilisez toujours l\'URL locale : <code>' + supabaseUrl + '</code></p>';
+                    html += '<p><strong>Solution :</strong></p>';
+                    html += '<ol>';
+                    html += '<li>Créez un projet sur <a href="https://supabase.com" target="_blank">supabase.com</a></li>';
+                    html += '<li>Allez dans Settings > API</li>';
+                    html += '<li>Copiez votre "Project URL"</li>';
+                    html += '<li>Modifiez <code>supabase-client.js</code> avec votre vraie URL</li>';
+                    html += '</ol>';
+                    allPassed = false;
+                } else {
+                    html += '<p class="status success">✅ SUCCESS</p>';
+                    html += '<p>URL configurée : <code>' + supabaseUrl + '</code></p>';
+                }
+                html += '</div>';
+
+                // Test 3: Tester la connexion
+                html += '<div class="test-item">';
+                html += '<h3>Test 3: Connexion à Supabase</h3>';
+                html += '<p>Test en cours...</p>';
+                html += '</div>';
+
+                resultsDiv.innerHTML = html;
+
+                try {
+                    // Tester une requête simple
+                    const { data, error } = await window.supabase.from('companies').select('count', { count: 'exact', head: true });
+
+                    let lastTestHtml = '<div class="test-item success">';
+                    lastTestHtml += '<h3>Test 3: Connexion à Supabase</h3>';
+                    lastTestHtml += '<p class="status success">✅ SUCCESS</p>';
+                    lastTestHtml += '<p>La connexion à Supabase fonctionne !</p>';
+                    lastTestHtml += '<p>La table <code>companies</code> existe.</p>';
+                    lastTestHtml += '</div>';
+
+                    // Test 4: Vérifier toutes les tables
+                    lastTestHtml += '<div class="test-item">';
+                    lastTestHtml += '<h3>Test 4: Vérification des tables</h3>';
+
+                    const tables = ['companies', 'accounts', 'journals', 'journal_entries', 'regles'];
+                    let allTablesExist = true;
+                    let tableResults = '<ul>';
+
+                    for (const table of tables) {
+                        try {
+                            await window.supabase.from(table).select('count', { count: 'exact', head: true });
+                            tableResults += '<li>✅ Table <code>' + table + '</code> existe</li>';
+                        } catch (err) {
+                            tableResults += '<li>❌ Table <code>' + table + '</code> manquante</li>';
+                            allTablesExist = false;
+                        }
+                    }
+                    tableResults += '</ul>';
+
+                    if (allTablesExist) {
+                        lastTestHtml += '<p class="status success">✅ SUCCESS</p>';
+                        lastTestHtml += '<p>Toutes les tables nécessaires existent :</p>';
+                        lastTestHtml += tableResults;
+                    } else {
+                        lastTestHtml += '<p class="status error">❌ ERREUR</p>';
+                        lastTestHtml += '<p>Certaines tables sont manquantes :</p>';
+                        lastTestHtml += tableResults;
+                        lastTestHtml += '<p><strong>Solution :</strong> Exécutez le script <code>supabase/migrations/00_complete_schema.sql</code> dans le SQL Editor de Supabase.</p>';
+                        allPassed = false;
+                    }
+                    lastTestHtml += '</div>';
+
+                    html = html.replace(/<div class="test-item">\s*<h3>Test 3:.*?<\/div>/, lastTestHtml);
+                    resultsDiv.innerHTML = html;
+
+                } catch (error) {
+                    let lastTestHtml = '<div class="test-item error">';
+                    lastTestHtml += '<h3>Test 3: Connexion à Supabase</h3>';
+                    lastTestHtml += '<p class="status error">❌ ERREUR</p>';
+                    lastTestHtml += '<p>Impossible de se connecter à Supabase.</p>';
+                    lastTestHtml += '<p><strong>Erreur :</strong> <code>' + error.message + '</code></p>';
+                    lastTestHtml += '<p><strong>Solutions possibles :</strong></p>';
+                    lastTestHtml += '<ul>';
+                    lastTestHtml += '<li>Vérifiez que votre clé API (ANON KEY) est correcte</li>';
+                    lastTestHtml += '<li>Vérifiez que votre projet Supabase est bien créé et actif</li>';
+                    lastTestHtml += '<li>Vérifiez votre connexion Internet</li>';
+                    lastTestHtml += '</ul>';
+                    lastTestHtml += '</div>';
+
+                    html = html.replace(/<div class="test-item">\s*<h3>Test 3:.*?<\/div>/, lastTestHtml);
+                    resultsDiv.innerHTML = html;
+                    allPassed = false;
+                }
+            }
+
+            // Résumé final
+            html = resultsDiv.innerHTML;
+            html += '<div class="test-item ' + (allPassed ? 'success' : 'error') + '" style="margin-top: 30px; font-size: 18px;">';
+            html += '<h2>📊 Résultat Final</h2>';
+            if (allPassed) {
+                html += '<p class="status success" style="font-size: 24px;">✅ TOUS LES TESTS SONT PASSÉS !</p>';
+                html += '<p>Votre configuration Supabase est correcte. Votre application devrait fonctionner.</p>';
+                html += '<p><a href="index.html" style="color: #4CAF50; font-weight: bold;">➡️ Aller à l\'application</a></p>';
+            } else {
+                html += '<p class="status error" style="font-size: 24px;">❌ CERTAINS TESTS ONT ÉCHOUÉ</p>';
+                html += '<p>Consultez les erreurs ci-dessus et suivez les solutions proposées.</p>';
+                html += '<p><strong>📖 Aide :</strong> Consultez le fichier <code>DEMARRAGE_RAPIDE.md</code></p>';
+            }
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

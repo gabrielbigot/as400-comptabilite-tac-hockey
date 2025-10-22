@@ -109,7 +109,13 @@ console.log("Initializing AS400App");
         // Bouton d'ajout de société
         const addCompanyBtn = document.getElementById('add-company-btn');
         if (addCompanyBtn) {
-            addCompanyBtn.addEventListener('click', () => this.addCompany());
+            console.log('Add company button found, adding listener');
+            addCompanyBtn.addEventListener('click', () => {
+                console.log('Add company button clicked!');
+                this.addCompany();
+            });
+        } else {
+            console.warn('Add company button NOT found!');
         }
 
         // Bouton d'ajout de ligne d'écriture
@@ -312,22 +318,34 @@ console.log("Initializing AS400App");
     }
 
     async addCompany() {
+        console.log('addCompany() function called');
         const newCompanyName = document.getElementById('new-company-name').value;
+        console.log('Company name:', newCompanyName);
+
         if (!newCompanyName) {
             this.showMessage('Veuillez saisir un nom pour la nouvelle société.');
             return;
         }
 
+        console.log('Getting user...');
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        console.log('User:', user);
+
+        if (!user) {
+            console.warn('No user found!');
+            return;
+        }
 
         try {
+            console.log('Inserting company into database...');
             const { error } = await supabase.from('companies').insert([{ name: newCompanyName, user_id: user.id }]);
             if (error) throw error;
+            console.log('Company added successfully!');
             this.showMessage('Société ajoutée avec succès !');
             document.getElementById('new-company-name').value = '';
             this.loadCompanies();
         } catch (error) {
+            console.error('Error adding company:', error);
             this.showMessage(`Erreur lors de l'ajout de la société: ${error.message}`);
         }
     }
