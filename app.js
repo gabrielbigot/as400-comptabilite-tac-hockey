@@ -156,6 +156,17 @@ console.log("Initializing AS400App");
         if (mfCompteInput) {
             mfCompteInput.addEventListener('input', (e) => this.handleAccountInput(e.target.value));
         }
+
+        // Batch listing filters
+        const batchFilterBtn = document.getElementById('batch-filter-btn');
+        if (batchFilterBtn) {
+            batchFilterBtn.addEventListener('click', () => this.loadBatchesList());
+        }
+
+        const batchResetFilterBtn = document.getElementById('batch-reset-filter-btn');
+        if (batchResetFilterBtn) {
+            batchResetFilterBtn.addEventListener('click', () => this.resetBatchFilters());
+        }
     }
 
     async loadAllAccounts() {
@@ -396,6 +407,8 @@ console.log("Initializing AS400App");
         const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité', 'Écritures'];
         if (choice === '3') {
             this.showScreen('entry-input-screen', [...basePath, 'Saisie d\'écriture']);
+        } else if (choice === '4') {
+            this.showScreen('batches-screen', [...basePath, 'Liste des lots']);
         } else {
             this.showMessage('Option invalide');
         }
@@ -501,6 +514,10 @@ console.log("Initializing AS400App");
             if (screenId === 'entry-detail-screen') this.initializeEntryDetailScreen(screen);
             if (screenId === 'accounts-screen') this.updateAccountsTable();
             if (screenId === 'journals-screen') this.updateJournalsTable();
+            if (screenId === 'batches-screen') {
+                this.loadJournalsForBatchFilter();
+                this.loadBatchesList();
+            }
             if (screenId === 'entry-input-screen') {
                 document.getElementById('date-comptable').value = '';
                 document.getElementById('journal-code-input').value = '';
@@ -582,6 +599,16 @@ console.log("Initializing AS400App");
             journalDisplay.textContent = 'Journal: Non défini';
             screenElement.dataset.journalId = '';
             console.warn('[initializeEntryDetailScreen] Journal not set or invalid.', this.currentJournal); // DEBUG
+        }
+
+        // Ensure buttons are visible (may have been hidden in view mode)
+        const validateBatchBtn = document.getElementById('validate-batch-btn');
+        if (validateBatchBtn) {
+            validateBatchBtn.style.display = 'inline-block';
+        }
+        const addLineBtn = document.getElementById('add-entry-line-btn');
+        if (addLineBtn) {
+            addLineBtn.style.display = 'inline-block';
         }
 
         this.updateEntriesTable(this.entryBatch);
@@ -1451,7 +1478,7 @@ console.log("Initializing AS400App");
 
             this.currentEditingBatchId = batchId;
             this.entryBatch = entries.map(e => ({ ...e })); // Copie des écritures
-            
+
             // Utiliser les informations de la première écriture pour la navigation
             const firstEntry = entries[0];
             const journal = { id: firstEntry.journal_id, name: 'Modification' }; // Simplification
@@ -1464,7 +1491,14 @@ console.log("Initializing AS400App");
             const validateBatchBtn = document.getElementById('validate-batch-btn');
             if (validateBatchBtn) {
                 validateBatchBtn.dataset.batchId = batchId;
+                validateBatchBtn.style.display = 'inline-block'; // Ensure visible
                 console.log(`[startModification] Stored batchId ${batchId} on validate-batch-btn.`);
+            }
+
+            // Ensure add line button is visible
+            const addLineBtn = document.getElementById('add-entry-line-btn');
+            if (addLineBtn) {
+                addLineBtn.style.display = 'inline-block';
             }
 
             // Ensure the UI knows we are in edit mode
@@ -1589,6 +1623,261 @@ console.log("Initializing AS400App");
         printWindow.document.close();
         printWindow.focus();
         printWindow.print();
+    }
+
+    async loadJournalsForBatchFilter() {
+        const journalSelect = document.getElementById('batch-filter-journal');
+        if (!journalSelect) return;
+
+        journalSelect.innerHTML = '<option value="">Tous les journaux</option>';
+
+        try {
+            const { data: journals, error } = await supabase
+                .from('journals')
+                .select('id, code, name')
+                .eq('company_id', this.selectedCompany.id)
+                .order('code', { ascending: true });
+
+            if (error) throw error;
+
+            journals.forEach(journal => {
+                const option = document.createElement('option');
+                option.value = journal.id;
+                option.textContent = `${journal.code} - ${journal.name}`;
+                journalSelect.appendChild(option);
+            });
+        } catch (error) {
+            this.showMessage(`Erreur de chargement des journaux: ${error.message}`);
+        }
+    }
+
+    async loadBatchesList() {
+        const tableContent = document.getElementById('batches-table-content');
+        tableContent.innerHTML = '<span class="no-data">(Chargement des lots...)</span>';
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            tableContent.innerHTML = '<span class="no-data">(Veuillez sélectionner une société)</span>';
+            return;
+        }
+
+        try {
+            // Get filter values
+            const journalFilter = document.getElementById('batch-filter-journal').value;
+            const startDate = document.getElementById('batch-filter-start-date').value;
+            const endDate = document.getElementById('batch-filter-end-date').value;
+
+            // Build query
+            let query = supabase
+                .from('journal_entries')
+                .select('batch_id, journal_id, date, compte, s, montant, libelle')
+                .eq('user_id', user.id)
+                .eq('company_id', this.selectedCompany.id)
+                .not('batch_id', 'is', null);
+
+            if (journalFilter) {
+                query = query.eq('journal_id', journalFilter);
+            }
+
+            const { data: entries, error } = await query.order('date', { ascending: false });
+
+            if (error) throw error;
+
+            // Filter by date on client side (because date format is DD/MM/YYYY)
+            let filteredEntries = entries;
+            if (startDate || endDate) {
+                filteredEntries = entries.filter(entry => {
+                    const parts = entry.date.split('/');
+                    const entryDay = parseInt(parts[0], 10);
+                    const entryMonth = parseInt(parts[1], 10) - 1;
+                    let entryYear = parseInt(parts[2], 10);
+
+                    if (entryYear < 100) {
+                        const currentYearLastTwoDigits = new Date().getFullYear() % 100;
+                        entryYear = (entryYear <= currentYearLastTwoDigits + 10) ? 2000 + entryYear : 1900 + entryYear;
+                    }
+                    const entryDate = new Date(entryYear, entryMonth, entryDay);
+                    entryDate.setHours(0, 0, 0, 0);
+
+                    let valid = true;
+                    if (startDate) {
+                        const filterStartDate = new Date(startDate);
+                        filterStartDate.setHours(0, 0, 0, 0);
+                        valid = valid && entryDate >= filterStartDate;
+                    }
+                    if (endDate) {
+                        const filterEndDate = new Date(endDate);
+                        filterEndDate.setHours(23, 59, 59, 999);
+                        valid = valid && entryDate <= filterEndDate;
+                    }
+                    return valid;
+                });
+            }
+
+            // Group entries by batch_id
+            const batchesMap = new Map();
+            filteredEntries.forEach(entry => {
+                if (!batchesMap.has(entry.batch_id)) {
+                    batchesMap.set(entry.batch_id, {
+                        batch_id: entry.batch_id,
+                        journal_id: entry.journal_id,
+                        date: entry.date,
+                        entries: [],
+                        totalDebit: 0,
+                        totalCredit: 0
+                    });
+                }
+                const batch = batchesMap.get(entry.batch_id);
+                batch.entries.push(entry);
+
+                const amount = parseFloat(entry.montant) || 0;
+                if (entry.s.toUpperCase() !== 'C') {
+                    batch.totalDebit += amount;
+                } else {
+                    batch.totalCredit += amount;
+                }
+            });
+
+            // Get journal names
+            const journalIds = [...new Set(filteredEntries.map(e => e.journal_id))];
+            let journalsMap = new Map();
+
+            if (journalIds.length > 0) {
+                const { data: journals, error: journalError } = await supabase
+                    .from('journals')
+                    .select('id, code, name')
+                    .in('id', journalIds);
+
+                if (journalError) throw journalError;
+                journals.forEach(j => journalsMap.set(j.id, `${j.code} - ${j.name}`));
+            }
+
+            // Convert map to array and sort by date (most recent first)
+            const batches = Array.from(batchesMap.values()).sort((a, b) => {
+                const dateA = this.parseDateString(a.date);
+                const dateB = this.parseDateString(b.date);
+                return dateB - dateA;
+            });
+
+            tableContent.innerHTML = '';
+
+            if (batches.length === 0) {
+                tableContent.innerHTML = '<span class="no-data">(Aucun lot à afficher)</span>';
+                return;
+            }
+
+            batches.forEach((batch, index) => {
+                const journalName = journalsMap.get(batch.journal_id) || 'Inconnu';
+                const row = document.createElement('div');
+                row.className = 'table-row';
+                row.innerHTML = `
+                    <span style="display: inline-block; width: 5ch;">${index + 1}</span>
+                    <span style="display: inline-block; width: 12ch;">${this.formatDateForDisplay(batch.date)}</span>
+                    <span style="display: inline-block; width: 18ch;">${journalName}</span>
+                    <span style="display: inline-block; width: 8ch; text-align: center;">${batch.entries.length}</span>
+                    <span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(batch.totalDebit)}</span>
+                    <span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(batch.totalCredit)}</span>
+                    <span style="display: inline-block; width: 30ch; text-align: center;">
+                        <button class="action-btn view-batch-btn" data-batch-id="${batch.batch_id}" style="margin-right: 5px;">Consulter</button>
+                        <button class="action-btn modify-batch-btn" data-batch-id="${batch.batch_id}" style="margin-right: 5px;">Modifier</button>
+                        <button class="action-btn delete-batch-btn" data-batch-id="${batch.batch_id}">Supprimer</button>
+                    </span>
+                `;
+                tableContent.appendChild(row);
+            });
+
+            // Add event listeners for batch actions
+            tableContent.querySelectorAll('.view-batch-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.viewBatch(e.target.dataset.batchId);
+                });
+            });
+            tableContent.querySelectorAll('.modify-batch-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.refreshCallback = () => this.loadBatchesList();
+                    this.startModification(e.target.dataset.batchId);
+                });
+            });
+            tableContent.querySelectorAll('.delete-batch-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.refreshCallback = () => this.loadBatchesList();
+                    this.deleteEntryBatch(e.target.dataset.batchId);
+                });
+            });
+
+        } catch (error) {
+            this.showMessage(`Erreur de chargement des lots: ${error.message}`);
+            console.error('Error loading batches:', error);
+        }
+    }
+
+    parseDateString(dateString) {
+        const parts = dateString.split('/');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        let year = parseInt(parts[2], 10);
+
+        if (year < 100) {
+            const currentYearLastTwoDigits = new Date().getFullYear() % 100;
+            year = (year <= currentYearLastTwoDigits + 10) ? 2000 + year : 1900 + year;
+        }
+
+        return new Date(year, month, day);
+    }
+
+    async viewBatch(batchId) {
+        if (!batchId) {
+            this.showMessage('Erreur: Identifiant de lot manquant.');
+            return;
+        }
+
+        try {
+            const { data: entries, error } = await supabase
+                .from('journal_entries')
+                .select('*')
+                .eq('batch_id', batchId);
+
+            if (error) throw error;
+            if (entries.length === 0) {
+                this.showMessage('Erreur: Impossible de trouver les écritures.');
+                return;
+            }
+
+            // Store entries in read-only mode
+            this.entryBatch = entries.map(e => ({ ...e }));
+            this.currentEditingBatchId = null; // Read-only mode
+
+            const firstEntry = entries[0];
+            const journal = { id: firstEntry.journal_id, name: 'Consultation' };
+            this.currentJournal = journal;
+
+            const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité', 'Écritures', 'Liste des lots'];
+            this.showScreen('entry-detail-screen', [...basePath, 'Consultation Lot']);
+
+            // Hide the validation button in view mode
+            const validateBatchBtn = document.getElementById('validate-batch-btn');
+            if (validateBatchBtn) {
+                validateBatchBtn.style.display = 'none';
+            }
+
+            // Hide the add line button in view mode
+            const addLineBtn = document.getElementById('add-entry-line-btn');
+            if (addLineBtn) {
+                addLineBtn.style.display = 'none';
+            }
+
+            this.updateEntriesTable(this.entryBatch);
+
+        } catch (error) {
+            this.showMessage(`Erreur lors de la consultation du lot: ${error.message}`);
+        }
+    }
+
+    resetBatchFilters() {
+        document.getElementById('batch-filter-journal').value = '';
+        document.getElementById('batch-filter-start-date').value = '';
+        document.getElementById('batch-filter-end-date').value = '';
+        this.loadBatchesList();
     }
 }
 

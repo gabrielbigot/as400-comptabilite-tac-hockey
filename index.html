@@ -179,16 +179,17 @@
                 <div><span class="menu-number">1.</span>    Gestion des Brouillards</div>
                 <div><span class="menu-number">2.</span>    Paramétrage des masques</div>
                 <div><span class="menu-number">3.</span>    Saisie d'écriture directe</div>
-                <div><span class="menu-number">4.</span>    Gestion des Brouillards Automatiques</div>
-                <div><span class="menu-number">5.</span>    Intégration des interfaces BIG immédiatement</div>
-                <div><span class="menu-number">6.</span>    Intégration des interfaces SPS immédiatement</div>
-                <div><span class="menu-number">7.</span>    Intégration des interfaces MBS immédiatement</div>
-                <div><span class="menu-number">8.</span>    Intégration des interfaces ABB immédiatement</div>
-                <div><span class="menu-number">9.</span>    Intégration des interfaces DOU immédiatement</div>
-                <div><span class="menu-number">10.</span>   Intégration des interfaces NAT immédiatement</div>
-                <div><span class="menu-number">11.</span>   Intégration des factures achat BIG immédiatement</div>
-                <div><span class="menu-number">12.</span>   Intégration immédiate des traites fournisseurs BIG</div>
-                <div><span class="menu-number">13.</span>   Intégration immédiate des factures d'achat ABB</div>
+                <div><span class="menu-number">4.</span>    Liste des lots d'écritures</div>
+                <div><span class="menu-number">5.</span>    Gestion des Brouillards Automatiques</div>
+                <div><span class="menu-number">6.</span>    Intégration des interfaces BIG immédiatement</div>
+                <div><span class="menu-number">7.</span>    Intégration des interfaces SPS immédiatement</div>
+                <div><span class="menu-number">8.</span>    Intégration des interfaces MBS immédiatement</div>
+                <div><span class="menu-number">9.</span>    Intégration des interfaces ABB immédiatement</div>
+                <div><span class="menu-number">10.</span>   Intégration des interfaces DOU immédiatement</div>
+                <div><span class="menu-number">11.</span>   Intégration des interfaces NAT immédiatement</div>
+                <div><span class="menu-number">12.</span>   Intégration des factures achat BIG immédiatement</div>
+                <div><span class="menu-number">13.</span>   Intégration immédiate des traites fournisseurs BIG</div>
+                <div><span class="menu-number">14.</span>   Intégration immédiate des factures d'achat ABB</div>
             </div>
             <div class="right">A suivre...</div>
             <div class="footer-container">
@@ -449,7 +450,7 @@
             <button class="toolbar-btn">About</button>
             <button class="toolbar-btn">Help</button>
         </div>
-        
+
         <div class="terminal-content">
             <div class="header-new">
                 <div class="breadcrumb"></div>
@@ -480,6 +481,61 @@
                     <span>===>&nbsp;<input type="text" id="journals-command-input" class="command-input" maxlength="10"></span>
                     <span>Option ou commande</span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Liste des Lots -->
+    <div id="batches-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div>Liste des lots d'écritures</div>
+            <br>
+
+            <!-- Filtres -->
+            <div class="filter-section" style="margin-bottom: 15px;">
+                <span>Journal: </span>
+                <select id="batch-filter-journal" class="field-input" style="width: 20ch; background-color: #333; color: #FFFFFF; border: 1px solid #00FF00; padding: 5px;">
+                    <option value="">Tous les journaux</option>
+                </select>
+                <span style="margin-left: 20px;">Date min: </span>
+                <input type="date" id="batch-filter-start-date" class="field-input" style="width: 15ch;">
+                <span style="margin-left: 20px;">Date max: </span>
+                <input type="date" id="batch-filter-end-date" class="field-input" style="width: 15ch;">
+                <button id="batch-filter-btn" class="btn" style="margin-left: 15px;">Filtrer</button>
+                <button id="batch-reset-filter-btn" class="btn" style="margin-left: 10px;">Réinitialiser</button>
+            </div>
+
+            <!-- Liste des lots -->
+            <div class="batches-list">
+                <div class="table-header">
+                    <span style="display: inline-block; width: 5ch;">N°</span>
+                    <span style="display: inline-block; width: 12ch;">Date</span>
+                    <span style="display: inline-block; width: 18ch;">Journal</span>
+                    <span style="display: inline-block; width: 8ch;">Lignes</span>
+                    <span style="display: inline-block; width: 15ch; text-align: right;">Total Débit</span>
+                    <span style="display: inline-block; width: 15ch; text-align: right;">Total Crédit</span>
+                    <span style="display: inline-block; width: 30ch; text-align: center;">Actions</span>
+                </div>
+                <div class="table-content" id="batches-table-content" style="height: 300px; overflow-y: auto;">
+                    <span class="no-data">(Chargement des lots...)</span>
+                </div>
+            </div>
+
+            <div class="footer-container">
+                <div class="status-bar"></div>
             </div>
         </div>
     </div>
