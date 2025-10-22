@@ -167,6 +167,27 @@ console.log("Initializing AS400App");
         if (batchResetFilterBtn) {
             batchResetFilterBtn.addEventListener('click', () => this.resetBatchFilters());
         }
+
+        // Export buttons
+        const exportJournalBtn = document.getElementById('export-journal-btn');
+        if (exportJournalBtn) {
+            exportJournalBtn.addEventListener('click', () => this.exportJournalEntries());
+        }
+
+        const exportAccountBtn = document.getElementById('export-account-btn');
+        if (exportAccountBtn) {
+            exportAccountBtn.addEventListener('click', () => this.exportAccountEntries());
+        }
+
+        const exportBatchesBtn = document.getElementById('export-batches-btn');
+        if (exportBatchesBtn) {
+            exportBatchesBtn.addEventListener('click', () => this.exportBatchesList());
+        }
+
+        const exportAccountsBtn = document.getElementById('export-accounts-btn');
+        if (exportAccountsBtn) {
+            exportAccountsBtn.addEventListener('click', () => this.exportAccounts());
+        }
     }
 
     async loadAllAccounts() {
@@ -1878,6 +1899,241 @@ console.log("Initializing AS400App");
         document.getElementById('batch-filter-start-date').value = '';
         document.getElementById('batch-filter-end-date').value = '';
         this.loadBatchesList();
+    }
+
+    // ===== EXPORT FUNCTIONS =====
+
+    exportToCSV(data, filename) {
+        if (!data || data.length === 0) {
+            this.showMessage('Aucune donnée à exporter.');
+            return;
+        }
+
+        // Get headers from first object
+        const headers = Object.keys(data[0]);
+
+        // Create CSV content
+        let csvContent = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+
+        // Add headers
+        csvContent += headers.map(h => `"${h}"`).join(';') + '\r\n';
+
+        // Add rows
+        data.forEach(row => {
+            const values = headers.map(header => {
+                const value = row[header] !== null && row[header] !== undefined ? row[header] : '';
+                return `"${String(value).replace(/"/g, '""')}"`;
+            });
+            csvContent += values.join(';') + '\r\n';
+        });
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        this.showMessage('Export CSV réussi !');
+    }
+
+    exportJournalEntries() {
+        if (!this.displayedEntries || this.displayedEntries.length === 0) {
+            this.showMessage('Aucune écriture à exporter.');
+            return;
+        }
+
+        const journalName = this.currentJournal ? this.currentJournal.name : 'Journal';
+        const exportData = this.displayedEntries.map(entry => ({
+            'Date': this.formatDateForDisplay(entry.date),
+            'Compte': entry.compte,
+            'Libellé': entry.libelle,
+            'Débit': entry.s.toUpperCase() !== 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Crédit': entry.s.toUpperCase() === 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Batch ID': entry.batch_id || ''
+        }));
+
+        const filename = `journal_${journalName}_${new Date().toISOString().slice(0, 10)}.csv`;
+        this.exportToCSV(exportData, filename);
+    }
+
+    exportAccountEntries() {
+        if (!this.displayedEntries || this.displayedEntries.length === 0) {
+            this.showMessage('Aucune écriture à exporter.');
+            return;
+        }
+
+        const accountNumber = this.navigationPath[this.navigationPath.length - 1];
+        const exportData = this.displayedEntries.map(entry => ({
+            'Date': this.formatDateForDisplay(entry.date),
+            'Libellé': entry.libelle,
+            'Débit': entry.s.toUpperCase() !== 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Crédit': entry.s.toUpperCase() === 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Batch ID': entry.batch_id || ''
+        }));
+
+        const filename = `compte_${accountNumber}_${new Date().toISOString().slice(0, 10)}.csv`;
+        this.exportToCSV(exportData, filename);
+    }
+
+    async exportBatchesList() {
+        const tableContent = document.getElementById('batches-table-content');
+
+        // Check if we have batches to export
+        if (!tableContent || tableContent.querySelector('.no-data')) {
+            this.showMessage('Aucun lot à exporter.');
+            return;
+        }
+
+        this.showMessage('Préparation de l\'export...');
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !this.selectedCompany) {
+                this.showMessage('Erreur: utilisateur ou société non défini.');
+                return;
+            }
+
+            // Get filter values
+            const journalFilter = document.getElementById('batch-filter-journal').value;
+            const startDate = document.getElementById('batch-filter-start-date').value;
+            const endDate = document.getElementById('batch-filter-end-date').value;
+
+            // Build query
+            let query = supabase
+                .from('journal_entries')
+                .select('batch_id, journal_id, date, compte, s, montant, libelle')
+                .eq('user_id', user.id)
+                .eq('company_id', this.selectedCompany.id)
+                .not('batch_id', 'is', null);
+
+            if (journalFilter) {
+                query = query.eq('journal_id', journalFilter);
+            }
+
+            const { data: entries, error } = await query.order('date', { ascending: false });
+
+            if (error) throw error;
+
+            // Filter by date on client side
+            let filteredEntries = entries;
+            if (startDate || endDate) {
+                filteredEntries = entries.filter(entry => {
+                    const entryDate = this.parseDateString(entry.date);
+                    let valid = true;
+                    if (startDate) {
+                        const filterStartDate = new Date(startDate);
+                        filterStartDate.setHours(0, 0, 0, 0);
+                        valid = valid && entryDate >= filterStartDate;
+                    }
+                    if (endDate) {
+                        const filterEndDate = new Date(endDate);
+                        filterEndDate.setHours(23, 59, 59, 999);
+                        valid = valid && entryDate <= filterEndDate;
+                    }
+                    return valid;
+                });
+            }
+
+            // Group entries by batch_id
+            const batchesMap = new Map();
+            filteredEntries.forEach(entry => {
+                if (!batchesMap.has(entry.batch_id)) {
+                    batchesMap.set(entry.batch_id, {
+                        batch_id: entry.batch_id,
+                        journal_id: entry.journal_id,
+                        date: entry.date,
+                        entries: [],
+                        totalDebit: 0,
+                        totalCredit: 0
+                    });
+                }
+                const batch = batchesMap.get(entry.batch_id);
+                batch.entries.push(entry);
+
+                const amount = parseFloat(entry.montant) || 0;
+                if (entry.s.toUpperCase() !== 'C') {
+                    batch.totalDebit += amount;
+                } else {
+                    batch.totalCredit += amount;
+                }
+            });
+
+            // Get journal names
+            const journalIds = [...new Set(filteredEntries.map(e => e.journal_id))];
+            let journalsMap = new Map();
+
+            if (journalIds.length > 0) {
+                const { data: journals, error: journalError } = await supabase
+                    .from('journals')
+                    .select('id, code, name')
+                    .in('id', journalIds);
+
+                if (journalError) throw journalError;
+                journals.forEach(j => journalsMap.set(j.id, `${j.code} - ${j.name}`));
+            }
+
+            // Convert to array for export
+            const batches = Array.from(batchesMap.values());
+
+            const exportData = batches.map(batch => ({
+                'Date': this.formatDateForDisplay(batch.date),
+                'Journal': journalsMap.get(batch.journal_id) || 'Inconnu',
+                'Nombre de lignes': batch.entries.length,
+                'Total Débit': this.formatAmount(batch.totalDebit),
+                'Total Crédit': this.formatAmount(batch.totalCredit),
+                'Batch ID': batch.batch_id
+            }));
+
+            const filename = `lots_${this.selectedCompany.name}_${new Date().toISOString().slice(0, 10)}.csv`;
+            this.exportToCSV(exportData, filename);
+
+        } catch (error) {
+            this.showMessage(`Erreur lors de l'export: ${error.message}`);
+            console.error('Error exporting batches:', error);
+        }
+    }
+
+    async exportAccounts() {
+        this.showMessage('Préparation de l\'export du plan comptable...');
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                this.showMessage('Veuillez vous connecter.');
+                return;
+            }
+
+            const { data: accounts, error } = await supabase
+                .from('accounts')
+                .select('account_number, label')
+                .eq('user_id', user.id)
+                .order('account_number', { ascending: true });
+
+            if (error) throw error;
+
+            if (!accounts || accounts.length === 0) {
+                this.showMessage('Aucun compte à exporter.');
+                return;
+            }
+
+            const exportData = accounts.map(account => ({
+                'Numéro de compte': account.account_number,
+                'Libellé': account.label
+            }));
+
+            const filename = `plan_comptable_${new Date().toISOString().slice(0, 10)}.csv`;
+            this.exportToCSV(exportData, filename);
+
+        } catch (error) {
+            this.showMessage(`Erreur lors de l'export: ${error.message}`);
+            console.error('Error exporting accounts:', error);
+        }
     }
 }
 

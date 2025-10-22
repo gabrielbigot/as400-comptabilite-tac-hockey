@@ -331,6 +331,9 @@
                 </div>
             </div>
             <br>
+            <div style="margin-bottom: 10px;">
+                <button id="export-accounts-btn" class="btn">Exporter le Plan Comptable (CSV)</button>
+            </div>
             <div class="accounts-list">
                 <div class="table-header">
                     <span style="display: inline-block; width: 10ch;">Numéro</span>
@@ -382,6 +385,7 @@
                         <button id="account-sort-asc" class="btn-sort">↑ Ancien</button>
                     </span>
                     <button id="print-account-btn" class="btn" style="margin-left: 20px;">Imprimer</button>
+                    <button id="export-account-btn" class="btn" style="margin-left: 10px;">Exporter CSV</button>
                 </div>
             <div class="table-content" id="account-entries-table-content">
                 <span class="no-data">(Chargement des écritures...)</span>
@@ -426,6 +430,7 @@
                         <button id="journal-sort-asc" class="btn-sort">↑ Ancien</button>
                     </span>
                     <button id="print-journal-btn" class="btn" style="margin-left: 20px;">Imprimer</button>
+                    <button id="export-journal-btn" class="btn" style="margin-left: 10px;">Exporter CSV</button>
                 </div>
                 <div class="table-content" id="journal-entries-table-content" style="height: 300px; overflow-y: auto;">
                     <span class="no-data">(Chargement des écritures...)</span>
@@ -516,6 +521,7 @@
                 <input type="date" id="batch-filter-end-date" class="field-input" style="width: 15ch;">
                 <button id="batch-filter-btn" class="btn" style="margin-left: 15px;">Filtrer</button>
                 <button id="batch-reset-filter-btn" class="btn" style="margin-left: 10px;">Réinitialiser</button>
+                <button id="export-batches-btn" class="btn" style="margin-left: 10px;">Exporter CSV</button>
             </div>
 
             <!-- Liste des lots -->
