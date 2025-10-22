@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AS/400 - Système de Comptabilité</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Écran d'authentification -->
+    <div id="auth-screen" class="screen active">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="connect-dialog">
+            <div class="dialog-header">
+                <span>Authentification</span>
+                <button class="close-btn">×</button>
+            </div>
+            <div class="dialog-content">
+                <label>Email:</label>
+                <input type="text" id="auth-email" class="field-input" placeholder="votre@email.com">
+                <label>Mot de passe:</label>
+                <input type="password" id="auth-password" class="field-input" placeholder="********">
+                <div class="dialog-buttons">
+                    <button id="auth-signup" class="btn">S'inscrire</button>
+                    <button id="auth-signin" class="btn">Se connecter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran d'ouverture système -->
+    <div id="system-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="system-info">
+                <div class="center">Ouverture</div>
+                <br>
+                <div class="right">Système . . . . . . . : S061F745</div>
+                <div class="right">Sous-système . . . : QINTER</div>
+                <div class="right">Écran . . . . . . . : QPADEV037K</div>
+                <br><br>
+                <div>Utilisateur . . . . . . . . . .</div>
+                <div>Mot de passe . . . . . . . . .</div>
+                <div>Programme/procédure . . . . .</div>
+                <div>Menu . . . . . . . . . . . . .</div>
+                <div>Bibliothèque en cours . . . .</div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Écran choix société -->
+    <div id="company-screen" class="screen">
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div>Indiquez vos choix, puis appuyez sur Entr{e.</div>
+            <div>1=Choisir</div>
+            <br>
+            <div id="company-list-container" class="company-list">
+                <!-- La liste des sociétés sera chargée ici par JavaScript -->
+            </div>
+            <div class="right">A suivre...</div>
+
+            <div class="add-company-form">
+                <input type="text" id="new-company-name" placeholder="Nom de la nouvelle société">
+                <button id="add-company-btn">Ajouter Société</button>
+            </div>
+            <div class="footer-container">
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu général -->
+    <div id="main-menu-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div>Choisissez l'une des options suivantes :</div>
+            <br><br>
+            <div class="menu-options">
+                <div><span class="menu-number">1.</span>    Menu comptabilité</div>
+                <div><span class="menu-number">2.</span>    Menu Sécurité</div>
+                <div><span class="menu-number">3.</span>    Choix d'une société de travail</div>
+                <div><span class="menu-number">4.</span>    Fin de session</div>
+            </div>
+            <br><br><br><br><br><br><br><br><br><br>
+            <div class="right">Fin</div>
+            <div class="footer-container">
+                <div class="input-prompt">
+                    <span>===>&nbsp;<input type="text" id="main-menu-input" class="command-input" maxlength="10"></span>
+                    <span>Option ou commande</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu comptabilité -->
+    <div id="accounting-menu-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div>Choisissez l'une des options suivantes :</div>
+            <br><br>
+            <div class="menu-options">
+                <div><span class="menu-number">1.</span>    Comptes</div>
+                <div><span class="menu-number">2.</span>    Journaux</div>
+                <div><span class="menu-number">3.</span>    Écritures</div>
+                <div><span class="menu-number">4.</span>    Éditions</div>
+                <div><span class="menu-number">5.</span>    Paramètres</div>
+                <div><span class="menu-number">6.</span>    Traitements fin exercice</div>
+            </div>
+            <br><br><br><br><br><br><br><br><br>
+            <div class="right">Fin</div>
+            <div class="footer-container">
+                <div class="input-prompt">
+                    <span>===>&nbsp;<input type="text" id="accounting-menu-input" class="command-input" maxlength="10"></span>
+                    <span>Option ou commande</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran écritures -->
+    <div id="entries-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div>Choisissez l'une des options suivantes :</div>
+            <br><br>
+            <div class="menu-options">
+                <div><span class="menu-number">1.</span>    Gestion des Brouillards</div>
+                <div><span class="menu-number">2.</span>    Paramétrage des masques</div>
+                <div><span class="menu-number">3.</span>    Saisie d'écriture directe</div>
+                <div><span class="menu-number">4.</span>    Gestion des Brouillards Automatiques</div>
+                <div><span class="menu-number">5.</span>    Intégration des interfaces BIG immédiatement</div>
+                <div><span class="menu-number">6.</span>    Intégration des interfaces SPS immédiatement</div>
+                <div><span class="menu-number">7.</span>    Intégration des interfaces MBS immédiatement</div>
+                <div><span class="menu-number">8.</span>    Intégration des interfaces ABB immédiatement</div>
+                <div><span class="menu-number">9.</span>    Intégration des interfaces DOU immédiatement</div>
+                <div><span class="menu-number">10.</span>   Intégration des interfaces NAT immédiatement</div>
+                <div><span class="menu-number">11.</span>   Intégration des factures achat BIG immédiatement</div>
+                <div><span class="menu-number">12.</span>   Intégration immédiate des traites fournisseurs BIG</div>
+                <div><span class="menu-number">13.</span>   Intégration immédiate des factures d'achat ABB</div>
+            </div>
+            <div class="right">A suivre...</div>
+            <div class="footer-container">
+                <div class="input-prompt">
+                    <span>===>&nbsp;<input type="text" id="entries-menu-input" class="command-input" maxlength="10"></span>
+                    <span>Option ou commande</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran saisie écriture -->
+    <div id="entry-input-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            
+            <br>
+            <div>Indiquez vos choix, puis appuyez sur Entrée.</div>
+            <br>
+            <div class="form-fields">
+                
+                <div>Date comptable . . . . . . . <input type="text" id="date-comptable" class="field-input" placeholder="JJ/MM/AAAA" maxlength="10">    JJ/MM/AAAA</div>
+                <br>
+                <div>Code journal . . . . . . . . <input type="text" id="journal-code-input" class="field-input" maxlength="10"></div>
+                <br>
+                <div id="journal-selection-list" style="margin-top: 10px; padding: 10px; border: 1px solid #00ff00; height: 100px; overflow-y: auto;">
+                    <!-- La liste des journaux disponibles sera chargée ici -->
+                </div>
+                <br>
+                
+                
+                <br>
+                
+            </div>
+            <div class="status-bar">
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran saisie écriture sans masque -->
+    <div id="entry-detail-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div id="current-journal-display" style="text-align: center; color: #ffff00; font-weight: bold;"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+
+            <!-- Section des champs obligatoires -->
+            <div class="mandatory-fields">
+                <div style="color: #ffff00; font-weight: bold; margin-bottom: 10px;">▼ SAISIE ÉCRITURE ▼</div>
+                <div class="form-row">
+                    <span>Compte </span><input type="text" id="mf-compte" class="field-8" placeholder="Requis">
+                    <span style="margin-left: 20px;">S </span><input type="text" id="mf-s" class="field-1" maxlength="1">
+                    <span style="margin-left: 20px;">Montant </span><input type="text" id="mf-montant" class="field-15" placeholder="0,00">
+                </div>
+                <br>
+                <div class="form-row">
+                    <span>Libellé </span><input type="text" id="mf-libelle" class="field-30" placeholder="Description de l&apos;écriture">
+                    <span style="margin-left: 20px;">Date </span><input type="text" id="mf-date" class="field-8" placeholder="JJ/MM/AA">
+                    <button id="add-entry-line-btn" class="btn" style="margin-left: 15px;">Ajouter Ligne</button>
+                </div>
+            </div>
+
+            
+
+            <!-- Tableau des comptes -->
+            <div class="accounts-table" style="margin-top: 15px; height: 120px; overflow-y: auto; border-bottom: 1px solid #00ff00; padding-top: 5px;">
+                <div class="table-content" style="margin-top: 10px;">
+                    <span class="no-data">(Aucun élément à afficher)</span>
+                </div>
+            </div>
+            
+            <!-- Totaux -->
+            <div class="totals-line" style="margin-top: 5px;">
+                <span>                                        Solde              Totaux</span>
+            </div>
+            
+            <!-- Bouton de validation du lot -->
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="validate-batch-btn" class="btn">Valider le Lot</button>
+            </div>
+            
+            
+
+            <!-- Message imprimante -->
+            
+            
+            <div class="status-bar">
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Lookup Modal -->
+    <div id="account-lookup-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Sélectionner un Compte</h3>
+            <div id="account-lookup-list" class="table-content" style="max-height: 200px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="app.js"></script>
+</body>
+    <!-- Écran Comptes -->
+    <div id="accounts-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div class="accounts-list">
+                <div class="table-header">
+                    <span style="display: inline-block; width: 10ch;">Numéro</span>
+                    <span style="display: inline-block; width: 30ch;">Libellé</span>
+                    <span style="display: inline-block; width: 20ch;">Actions</span>
+                </div>
+                <div class="table-content" id="accounts-table-content" style="height: 200px; overflow-y: auto;">
+                    <span class="no-data">(Chargement des comptes...)</span>
+                </div>
+            </div>
+            <div class="add-account-form" style="margin-top: 20px;">
+                <input type="text" id="new-account-number" placeholder="Numéro (ex: 600000)" maxlength="10" style="width: 15ch;">
+                <input type="text" id="new-account-label" placeholder="Libellé du nouveau compte" style="width: 30ch;">
+                <button id="add-account-btn" class="btn" data-mode="add">Ajouter</button>
+            </div>
+            <div class="footer-container">
+                <div class="status-bar"></div>
+                <div class="input-prompt">
+                    <span>===>&nbsp;<input type="text" id="accounts-command-input" class="command-input" maxlength="10"></span>
+                    <span>Option ou commande</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Détail Compte -->
+    <div id="account-detail-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div class="account-entries-list">
+                <div class="filter-section" style="margin-bottom: 10px;">
+                    <span>Afficher à partir du: </span>
+                    <input type="date" id="account-start-date" class="field-input">
+                    <span class="sort-buttons" style="margin-left: 20px;">
+                        <span>Trier par:</span>
+                        <button id="account-sort-desc" class="btn-sort active">↓ Récent</button>
+                        <button id="account-sort-asc" class="btn-sort">↑ Ancien</button>
+                    </span>
+                    <button id="print-account-btn" class="btn" style="margin-left: 20px;">Imprimer</button>
+                </div>
+            <div class="table-content" id="account-entries-table-content">
+                <span class="no-data">(Chargement des écritures...)</span>
+            </div>
+            </div>
+
+            <div style="border-top: 1px solid #00FF00; margin-top: 10px; padding-top: 5px;"></div>
+
+            <!-- Totaux -->
+            <div class="totals-line" style="margin-top: 5px;">
+                <span>                                        Solde              Totaux</span>
+            </div>
+            <div class="footer-container">
+                <div class="status-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Détail Journal -->
+    <div id="journal-detail-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div class="journal-entries-list">
+                <div class="filter-section" style="margin-bottom: 10px;">
+                    <span>Afficher à partir du: </span>
+                    <input type="date" id="journal-start-date" class="field-input">
+                    <span class="sort-buttons" style="margin-left: 20px;">
+                        <span>Trier par:</span>
+                        <button id="journal-sort-desc" class="btn-sort active">↓ Récent</button>
+                        <button id="journal-sort-asc" class="btn-sort">↑ Ancien</button>
+                    </span>
+                    <button id="print-journal-btn" class="btn" style="margin-left: 20px;">Imprimer</button>
+                </div>
+                <div class="table-content" id="journal-entries-table-content" style="height: 300px; overflow-y: auto;">
+                    <span class="no-data">(Chargement des écritures...)</span>
+                </div>
+            </div>
+
+            <div style="border-top: 1px solid #00FF00; margin-top: 10px; padding-top: 5px;"></div>
+
+            <!-- Totaux -->
+            <div class="totals-line" style="margin-top: 5px;">
+                <span>                                        Solde              Totaux</span>
+            </div>
+            <div class="footer-container">
+                <div class="status-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Journaux -->
+    <div id="journals-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+        
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div class="journals-list">
+                <div class="table-header">
+                    <span style="display: inline-block; width: 10ch;">Code</span>
+                    <span style="display: inline-block; width: 30ch;">Nom du Journal</span>
+                    <span style="display: inline-block; width: 20ch;">Actions</span>
+                </div>
+                <div class="table-content" id="journals-table-content" style="height: 200px; overflow-y: auto;">
+                    <span class="no-data">(Chargement des journaux...)</span>
+                </div>
+            </div>
+            <div class="add-journal-form" style="margin-top: 20px;">
+                <input type="text" id="new-journal-code" placeholder="Code (ex: AC)" maxlength="4" style="width: 8ch;">
+                <input type="text" id="new-journal-name" placeholder="Nom du nouveau journal" style="width: 30ch;">
+                <button id="add-journal-btn" class="btn" data-mode="add">Ajouter</button>
+            </div>
+            <div class="footer-container">
+                <div class="status-bar"></div>
+                <div class="input-prompt">
+                    <span>===>&nbsp;<input type="text" id="journals-command-input" class="command-input" maxlength="10"></span>
+                    <span>Option ou commande</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</html> 

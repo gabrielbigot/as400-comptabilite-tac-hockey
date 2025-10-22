@@ -1,0 +1,202 @@
+/* General Body Styles */
+body {
+    background-color: #000;
+    color: #00FF00; /* Green text */
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 16px;
+    margin: 0;
+    padding: 0;
+}
+
+/* Screen Management */
+.screen {
+    display: none;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+}
+
+.screen.active {
+    display: block;
+}
+
+/* Terminal Content Area */
+.terminal-content {
+    border: 2px solid #00FF00;
+    padding: 15px;
+    margin: 15px;
+    height: calc(100vh - 70px);
+    box-sizing: border-box;
+    background-color: #111;
+    overflow-y: auto;
+}
+
+/* Header and Breadcrumb */
+.header-new {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #00FF00;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.breadcrumb .path-item {
+    color: #FFFF00; /* Yellow for path items */
+}
+
+.breadcrumb .path-separator {
+    color: #00FF00;
+}
+
+.datetime {
+    text-align: right;
+}
+
+/* Input Fields and Prompts */
+input[type="text"],
+input[type="password"],
+input[type="date"],
+input[type="email"] {
+    background-color: #333;
+    color: #FFFFFF;
+    border: 1px solid #00FF00;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 5px;
+}
+
+input:focus {
+    outline: 1px solid #FFFF00;
+}
+
+.command-input {
+    width: 50ch;
+}
+
+.footer-container {
+    position: absolute;
+    bottom: 30px;
+    left: 15px;
+    right: 15px;
+}
+
+.input-prompt {
+    border-top: 1px solid #00FF00;
+    padding-top: 10px;
+}
+
+/* Buttons */
+.btn, .action-btn, .toolbar-btn, .btn-sort {
+    background-color: #333;
+    color: #00FF00;
+    border: 1px solid #00FF00;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.btn:hover, .action-btn:hover, .toolbar-btn:hover, .btn-sort:hover {
+    background-color: #00FF00;
+    color: #000;
+}
+
+.btn-sort.active {
+    background-color: #00FF00;
+    color: #000;
+    font-weight: bold;
+}
+
+/* Tables and Lists */
+.table-header, .header-row {
+    font-weight: bold;
+    border-bottom: 1px solid #00FF00;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+.table-row {
+    padding: 2px 0;
+}
+
+.no-data {
+    color: #FFFF00;
+    display: block;
+    margin-top: 10px;
+}
+
+.totals-line {
+    border-top: 1px solid #00FF00;
+    padding-top: 5px;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+/* Modal Styles */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 100; 
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+    background-color: #111;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #00FF00;
+    width: 80%;
+    max-width: 600px;
+}
+
+.close-button {
+    color: #FFFF00;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Specific Screens */
+#auth-screen .connect-dialog {
+    width: 400px;
+    margin: 10% auto;
+    border: 1px solid #00FF00;
+    padding: 10px;
+}
+#auth-screen .dialog-header {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+#auth-screen .dialog-content {
+    display: flex;
+    flex-direction: column;
+}
+#auth-screen .dialog-content label {
+    margin-top: 10px;
+}
+#auth-screen .dialog-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-around;
+}
+
+.right {
+    text-align: right;
+}
+
+.menu-options div {
+    margin-bottom: 5px;
+}
+
+.menu-number {
+    display: inline-block;
+    width: 3ch;
+    text-align: right;
+    margin-right: 10px;
+}
