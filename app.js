@@ -3754,8 +3754,8 @@ console.log("Initializing AS400App");
                         datasets: [{
                             data: topCharges.map(item => item.balance),
                             backgroundColor: colors,
-                            borderWidth: 2,
-                            borderColor: '#000'
+                            borderWidth: 1,
+                            borderColor: '#333'
                         }]
                     },
                     options: {
@@ -3766,12 +3766,19 @@ console.log("Initializing AS400App");
                                 display: true,
                                 position: 'bottom',
                                 labels: {
+                                    color: '#CCCCCC',
                                     font: {
-                                        size: 10
+                                        size: 10,
+                                        family: "'Courier New', monospace"
                                     }
                                 }
                             },
                             tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#FF6666',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#FF6666',
+                                borderWidth: 1,
                                 callbacks: {
                                     label: function(context) {
                                         const label = context.label || '';
@@ -3818,8 +3825,8 @@ console.log("Initializing AS400App");
                         datasets: [{
                             data: topProduits.map(item => item.balance),
                             backgroundColor: colors,
-                            borderWidth: 2,
-                            borderColor: '#000'
+                            borderWidth: 1,
+                            borderColor: '#333'
                         }]
                     },
                     options: {
@@ -3830,12 +3837,19 @@ console.log("Initializing AS400App");
                                 display: true,
                                 position: 'bottom',
                                 labels: {
+                                    color: '#CCCCCC',
                                     font: {
-                                        size: 10
+                                        size: 10,
+                                        family: "'Courier New', monospace"
                                     }
                                 }
                             },
                             tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00FF00',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#00FF00',
+                                borderWidth: 1,
                                 callbacks: {
                                     label: function(context) {
                                         const label = context.label || '';
@@ -3941,19 +3955,25 @@ console.log("Initializing AS400App");
                                 label: 'Produits',
                                 data: produitsData,
                                 borderColor: '#00FF00',
-                                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                                backgroundColor: 'rgba(0, 255, 0, 0.2)',
                                 tension: 0.4,
                                 fill: true,
-                                borderWidth: 2
+                                borderWidth: 2,
+                                pointBackgroundColor: '#00FF00',
+                                pointBorderColor: '#003300',
+                                pointRadius: 4
                             },
                             {
                                 label: 'Charges',
                                 data: chargesData,
                                 borderColor: '#FF6666',
-                                backgroundColor: 'rgba(255, 102, 102, 0.1)',
+                                backgroundColor: 'rgba(255, 102, 102, 0.2)',
                                 tension: 0.4,
                                 fill: true,
-                                borderWidth: 2
+                                borderWidth: 2,
+                                pointBackgroundColor: '#FF6666',
+                                pointBorderColor: '#330000',
+                                pointRadius: 4
                             }
                         ]
                     },
@@ -3963,9 +3983,21 @@ console.log("Initializing AS400App");
                         plugins: {
                             legend: {
                                 display: true,
-                                position: 'top'
+                                position: 'top',
+                                labels: {
+                                    color: '#CCCCCC',
+                                    font: {
+                                        family: "'Courier New', monospace",
+                                        size: 12
+                                    }
+                                }
                             },
                             tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00FF00',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#00FF00',
+                                borderWidth: 1,
                                 mode: 'index',
                                 intersect: false,
                                 callbacks: {
@@ -3976,12 +4008,32 @@ console.log("Initializing AS400App");
                             }
                         },
                         scales: {
+                            x: {
+                                ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
+                                }
+                            },
                             y: {
                                 beginAtZero: true,
                                 ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    },
                                     callback: function(value) {
                                         return value.toFixed(0) + ' €';
                                     }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
                                 }
                             }
                         }
@@ -4014,14 +4066,14 @@ console.log("Initializing AS400App");
                             {
                                 label: 'Produits',
                                 data: produitsData,
-                                backgroundColor: 'rgba(0, 255, 0, 0.7)',
+                                backgroundColor: 'rgba(0, 255, 0, 0.6)',
                                 borderColor: '#00FF00',
                                 borderWidth: 1
                             },
                             {
                                 label: 'Charges',
                                 data: chargesData,
-                                backgroundColor: 'rgba(255, 102, 102, 0.7)',
+                                backgroundColor: 'rgba(255, 102, 102, 0.6)',
                                 borderColor: '#FF6666',
                                 borderWidth: 1
                             }
@@ -4033,9 +4085,21 @@ console.log("Initializing AS400App");
                         plugins: {
                             legend: {
                                 display: true,
-                                position: 'top'
+                                position: 'top',
+                                labels: {
+                                    color: '#CCCCCC',
+                                    font: {
+                                        family: "'Courier New', monospace",
+                                        size: 12
+                                    }
+                                }
                             },
                             tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00FF00',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#00FF00',
+                                borderWidth: 1,
                                 mode: 'index',
                                 intersect: false,
                                 callbacks: {
@@ -4046,12 +4110,32 @@ console.log("Initializing AS400App");
                             }
                         },
                         scales: {
+                            x: {
+                                ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
+                                }
+                            },
                             y: {
                                 beginAtZero: true,
                                 ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    },
                                     callback: function(value) {
                                         return value.toFixed(0) + ' €';
                                     }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
                                 }
                             }
                         }
