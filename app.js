@@ -210,6 +210,38 @@ console.log("Initializing AS400App");
         if (printReportBtn) {
             printReportBtn.addEventListener('click', () => this.printReport());
         }
+
+        // Settings screen buttons
+        const saveYearSettingsBtn = document.getElementById('save-year-settings-btn');
+        if (saveYearSettingsBtn) {
+            saveYearSettingsBtn.addEventListener('click', () => this.saveYearSettings());
+        }
+
+        const saveClubSettingsBtn = document.getElementById('save-club-settings-btn');
+        if (saveClubSettingsBtn) {
+            saveClubSettingsBtn.addEventListener('click', () => this.saveClubSettings());
+        }
+
+        const saveDefaultAccountsBtn = document.getElementById('save-default-accounts-btn');
+        if (saveDefaultAccountsBtn) {
+            saveDefaultAccountsBtn.addEventListener('click', () => this.saveDefaultAccounts());
+        }
+
+        // Year-end processing buttons
+        const calculateResultBtn = document.getElementById('calculate-result-btn');
+        if (calculateResultBtn) {
+            calculateResultBtn.addEventListener('click', () => this.calculateYearResult());
+        }
+
+        const generateClosingEntriesBtn = document.getElementById('generate-closing-entries-btn');
+        if (generateClosingEntriesBtn) {
+            generateClosingEntriesBtn.addEventListener('click', () => this.generateClosingEntries());
+        }
+
+        const closeYearBtn = document.getElementById('close-year-btn');
+        if (closeYearBtn) {
+            closeYearBtn.addEventListener('click', () => this.closeYear());
+        }
     }
 
     async loadAllAccounts() {
@@ -2749,6 +2781,536 @@ console.log("Initializing AS400App");
         printWindow.document.close();
         printWindow.focus();
         printWindow.print();
+    }
+
+    // ===============================================
+    // Settings Functions
+    // ===============================================
+
+    async loadSettings() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load settings for the current company
+            const { data: settings, error } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                throw error;
+            }
+
+            // Populate accounting year settings
+            if (settings) {
+                document.getElementById('setting-year-start').value = settings.accounting_year_start || '';
+                document.getElementById('setting-year-end').value = settings.accounting_year_end || '';
+                document.getElementById('setting-year-closed').checked = settings.accounting_year_closed || false;
+
+                // Populate club information
+                document.getElementById('setting-club-name').value = settings.club_name || this.selectedCompany.name;
+                document.getElementById('setting-club-address').value = settings.club_address || '';
+                document.getElementById('setting-club-city').value = settings.club_city || '';
+                document.getElementById('setting-club-postal-code').value = settings.club_postal_code || '';
+                document.getElementById('setting-club-phone').value = settings.club_phone || '';
+                document.getElementById('setting-club-email').value = settings.club_email || '';
+
+                // Populate default accounts
+                document.getElementById('setting-default-bank').value = settings.default_bank_account || '';
+                document.getElementById('setting-default-cash').value = settings.default_cash_account || '';
+                document.getElementById('setting-default-result').value = settings.default_result_account || '';
+            } else {
+                // No settings yet, use company name as default
+                document.getElementById('setting-club-name').value = this.selectedCompany.name;
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            this.showMessage(`Erreur de chargement des paramètres: ${error.message}`);
+        }
+    }
+
+    async saveYearSettings() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        const yearStart = document.getElementById('setting-year-start').value;
+        const yearEnd = document.getElementById('setting-year-end').value;
+
+        if (!yearStart || !yearEnd) {
+            this.showMessage('Veuillez saisir les dates de début et fin d\'exercice');
+            return;
+        }
+
+        // Validate that end date is after start date
+        if (new Date(yearEnd) <= new Date(yearStart)) {
+            this.showMessage('La date de fin doit être postérieure à la date de début');
+            return;
+        }
+
+        try {
+            // Check if settings exist
+            const { data: existing } = await supabase
+                .from('company_settings')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (existing) {
+                // Update existing settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .update({
+                        accounting_year_start: yearStart,
+                        accounting_year_end: yearEnd,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('company_id', this.selectedCompany.id);
+
+                if (error) throw error;
+            } else {
+                // Insert new settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .insert({
+                        company_id: this.selectedCompany.id,
+                        accounting_year_start: yearStart,
+                        accounting_year_end: yearEnd
+                    });
+
+                if (error) throw error;
+            }
+
+            this.showMessage('Paramètres de l\'exercice sauvegardés');
+        } catch (error) {
+            console.error('Error saving year settings:', error);
+            this.showMessage(`Erreur de sauvegarde: ${error.message}`);
+        }
+    }
+
+    async saveClubSettings() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        const clubName = document.getElementById('setting-club-name').value;
+        const clubAddress = document.getElementById('setting-club-address').value;
+        const clubCity = document.getElementById('setting-club-city').value;
+        const clubPostalCode = document.getElementById('setting-club-postal-code').value;
+        const clubPhone = document.getElementById('setting-club-phone').value;
+        const clubEmail = document.getElementById('setting-club-email').value;
+
+        if (!clubName) {
+            this.showMessage('Veuillez saisir le nom du club');
+            return;
+        }
+
+        try {
+            // Check if settings exist
+            const { data: existing } = await supabase
+                .from('company_settings')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (existing) {
+                // Update existing settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .update({
+                        club_name: clubName,
+                        club_address: clubAddress,
+                        club_city: clubCity,
+                        club_postal_code: clubPostalCode,
+                        club_phone: clubPhone,
+                        club_email: clubEmail,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('company_id', this.selectedCompany.id);
+
+                if (error) throw error;
+            } else {
+                // Insert new settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .insert({
+                        company_id: this.selectedCompany.id,
+                        club_name: clubName,
+                        club_address: clubAddress,
+                        club_city: clubCity,
+                        club_postal_code: clubPostalCode,
+                        club_phone: clubPhone,
+                        club_email: clubEmail
+                    });
+
+                if (error) throw error;
+            }
+
+            this.showMessage('Informations du club sauvegardées');
+        } catch (error) {
+            console.error('Error saving club settings:', error);
+            this.showMessage(`Erreur de sauvegarde: ${error.message}`);
+        }
+    }
+
+    async saveDefaultAccounts() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        const defaultBank = document.getElementById('setting-default-bank').value;
+        const defaultCash = document.getElementById('setting-default-cash').value;
+        const defaultResult = document.getElementById('setting-default-result').value;
+
+        try {
+            // Check if settings exist
+            const { data: existing } = await supabase
+                .from('company_settings')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (existing) {
+                // Update existing settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .update({
+                        default_bank_account: defaultBank,
+                        default_cash_account: defaultCash,
+                        default_result_account: defaultResult,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('company_id', this.selectedCompany.id);
+
+                if (error) throw error;
+            } else {
+                // Insert new settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .insert({
+                        company_id: this.selectedCompany.id,
+                        default_bank_account: defaultBank,
+                        default_cash_account: defaultCash,
+                        default_result_account: defaultResult
+                    });
+
+                if (error) throw error;
+            }
+
+            this.showMessage('Comptes par défaut sauvegardés');
+        } catch (error) {
+            console.error('Error saving default accounts:', error);
+            this.showMessage(`Erreur de sauvegarde: ${error.message}`);
+        }
+    }
+
+    // ===============================================
+    // Year-End Processing Functions
+    // ===============================================
+
+    async loadYearEndInfo() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load settings to get year info
+            const { data: settings, error: settingsError } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (settingsError && settingsError.code !== 'PGRST116') {
+                throw settingsError;
+            }
+
+            // Display year period
+            const periodElement = document.getElementById('current-year-period');
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                const startDate = new Date(settings.accounting_year_start).toLocaleDateString('fr-FR');
+                const endDate = new Date(settings.accounting_year_end).toLocaleDateString('fr-FR');
+                periodElement.textContent = `${startDate} - ${endDate}`;
+
+                // Display year status
+                const statusElement = document.getElementById('current-year-status');
+                statusElement.textContent = settings.accounting_year_closed ? 'CLOS' : 'OUVERT';
+                statusElement.style.color = settings.accounting_year_closed ? '#FF0000' : '#00FF00';
+
+                // If year is closed, disable all buttons
+                if (settings.accounting_year_closed) {
+                    document.getElementById('calculate-result-btn').disabled = true;
+                    document.getElementById('generate-closing-entries-btn').disabled = true;
+                    document.getElementById('close-year-btn').disabled = true;
+                    this.showMessage('Exercice déjà clôturé');
+                }
+            } else {
+                periodElement.textContent = 'Non défini';
+                this.showMessage('Définissez d\'abord l\'exercice comptable dans Paramètres');
+                document.getElementById('calculate-result-btn').disabled = true;
+                document.getElementById('generate-closing-entries-btn').disabled = true;
+                document.getElementById('close-year-btn').disabled = true;
+                return;
+            }
+
+            // Count entries for the year
+            const { data: entries, error: entriesError } = await supabase
+                .from('journal_entries')
+                .select('id, s, montant, compte')
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', settings.accounting_year_start)
+                .lte('date', settings.accounting_year_end);
+
+            if (entriesError) throw entriesError;
+
+            document.getElementById('current-year-entries-count').textContent = entries ? entries.length : 0;
+
+            // Calculate result (revenues - expenses)
+            let result = 0;
+            if (entries) {
+                entries.forEach(entry => {
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    // Revenue accounts (7xxxxx): credit increases, debit decreases
+                    if (account.startsWith('7')) {
+                        result += isDebit ? -amount : amount;
+                    }
+                    // Expense accounts (6xxxxx): debit increases, credit decreases
+                    else if (account.startsWith('6')) {
+                        result += isDebit ? amount : -amount;
+                    }
+                });
+            }
+
+            document.getElementById('current-year-result').textContent = result.toFixed(2) + ' €';
+            document.getElementById('current-year-result').style.color = result >= 0 ? '#00FF00' : '#FF0000';
+
+        } catch (error) {
+            console.error('Error loading year-end info:', error);
+            this.showMessage(`Erreur de chargement: ${error.message}`);
+        }
+    }
+
+    async calculateYearResult() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        this.showMessage('Calcul du résultat en cours...');
+        await this.loadYearEndInfo();
+        this.showMessage('Résultat calculé');
+    }
+
+    async generateClosingEntries() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load settings
+            const { data: settings, error: settingsError } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (settingsError) throw settingsError;
+
+            if (!settings.accounting_year_start || !settings.accounting_year_end) {
+                this.showMessage('Exercice non défini dans les paramètres');
+                return;
+            }
+
+            if (settings.accounting_year_closed) {
+                this.showMessage('Exercice déjà clôturé');
+                return;
+            }
+
+            // Get OD journal for closing entries
+            const { data: odJournal, error: journalError } = await supabase
+                .from('journals')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .eq('code', 'OD')
+                .single();
+
+            if (journalError) {
+                this.showMessage('Journal OD non trouvé. Créez d\'abord un journal OD.');
+                return;
+            }
+
+            // Get all entries for the year
+            const { data: entries, error: entriesError } = await supabase
+                .from('journal_entries')
+                .select('compte, s, montant')
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', settings.accounting_year_start)
+                .lte('date', settings.accounting_year_end);
+
+            if (entriesError) throw entriesError;
+
+            // Calculate balances for revenue and expense accounts
+            const accountBalances = new Map();
+            entries.forEach(entry => {
+                const account = entry.compte;
+                const amount = parseFloat(entry.montant) || 0;
+                const isDebit = entry.s === 'D';
+
+                if (!accountBalances.has(account)) {
+                    accountBalances.set(account, { debit: 0, credit: 0 });
+                }
+
+                const balance = accountBalances.get(account);
+                if (isDebit) {
+                    balance.debit += amount;
+                } else {
+                    balance.credit += amount;
+                }
+            });
+
+            // Generate batch ID for closing entries
+            const batchId = `CLOTURE-${Date.now()}`;
+            const closingDate = settings.accounting_year_end;
+
+            // Prepare closing entries
+            const closingEntries = [];
+            let totalRevenues = 0;
+            let totalExpenses = 0;
+
+            // Close revenue accounts (7xxxxx) to result account
+            accountBalances.forEach((balance, account) => {
+                if (account.startsWith('7')) {
+                    const netBalance = balance.credit - balance.debit;
+                    if (netBalance !== 0) {
+                        // Debit revenue account to close it
+                        closingEntries.push({
+                            company_id: this.selectedCompany.id,
+                            journal_id: odJournal.id,
+                            date: closingDate,
+                            compte: account,
+                            s: 'D',
+                            montant: Math.abs(netBalance),
+                            libelle: 'Clôture exercice - Transfert au résultat',
+                            batch_id: batchId
+                        });
+                        totalRevenues += netBalance;
+                    }
+                }
+            });
+
+            // Close expense accounts (6xxxxx) to result account
+            accountBalances.forEach((balance, account) => {
+                if (account.startsWith('6')) {
+                    const netBalance = balance.debit - balance.credit;
+                    if (netBalance !== 0) {
+                        // Credit expense account to close it
+                        closingEntries.push({
+                            company_id: this.selectedCompany.id,
+                            journal_id: odJournal.id,
+                            date: closingDate,
+                            compte: account,
+                            s: 'C',
+                            montant: Math.abs(netBalance),
+                            libelle: 'Clôture exercice - Transfert au résultat',
+                            batch_id: batchId
+                        });
+                        totalExpenses += netBalance;
+                    }
+                }
+            });
+
+            // Calculate result
+            const result = totalRevenues - totalExpenses;
+            const resultAccount = settings.default_result_account || '120000';
+
+            // Add result entry
+            if (result !== 0) {
+                closingEntries.push({
+                    company_id: this.selectedCompany.id,
+                    journal_id: odJournal.id,
+                    date: closingDate,
+                    compte: resultAccount,
+                    s: result > 0 ? 'C' : 'D',
+                    montant: Math.abs(result),
+                    libelle: `Résultat de l'exercice ${new Date(settings.accounting_year_start).getFullYear()}`,
+                    batch_id: batchId
+                });
+            }
+
+            // Insert closing entries
+            if (closingEntries.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('journal_entries')
+                    .insert(closingEntries);
+
+                if (insertError) throw insertError;
+
+                this.showMessage(`${closingEntries.length} écritures de clôture générées. Résultat: ${result.toFixed(2)} €`);
+                await this.loadYearEndInfo();
+            } else {
+                this.showMessage('Aucune écriture à clôturer');
+            }
+
+        } catch (error) {
+            console.error('Error generating closing entries:', error);
+            this.showMessage(`Erreur de génération: ${error.message}`);
+        }
+    }
+
+    async closeYear() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        // Confirm action
+        const confirmed = confirm(
+            '⚠️ ATTENTION ⚠️\n\n' +
+            'La clôture de l\'exercice est IRRÉVERSIBLE.\n' +
+            'Vous ne pourrez plus modifier les écritures de cet exercice.\n\n' +
+            'Avez-vous :\n' +
+            '1. Calculé le résultat ?\n' +
+            '2. Généré les écritures de clôture ?\n' +
+            '3. Vérifié tous les comptes ?\n\n' +
+            'Confirmer la clôture définitive ?'
+        );
+
+        if (!confirmed) {
+            this.showMessage('Clôture annulée');
+            return;
+        }
+
+        try {
+            // Update settings to mark year as closed
+            const { error } = await supabase
+                .from('company_settings')
+                .update({
+                    accounting_year_closed: true,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('company_id', this.selectedCompany.id);
+
+            if (error) throw error;
+
+            this.showMessage('✓ Exercice clôturé définitivement');
+            await this.loadYearEndInfo();
+
+        } catch (error) {
+            console.error('Error closing year:', error);
+            this.showMessage(`Erreur de clôture: ${error.message}`);
+        }
     }
 }
 
