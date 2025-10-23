@@ -145,6 +145,7 @@
                 <div><span class="menu-number">4.</span>    Éditions</div>
                 <div><span class="menu-number">5.</span>    Paramètres</div>
                 <div><span class="menu-number">6.</span>    Traitements fin exercice</div>
+                <div><span class="menu-number">7.</span>    Tableau de bord</div>
             </div>
             <br><br><br><br><br><br><br><br><br>
             <div class="right">Fin</div>
@@ -715,6 +716,152 @@
                 <div style="margin-bottom: 20px;">
                     <button id="close-year-btn" class="btn" style="min-width: 40ch; background-color: #661100; border-color: #FF0000;">3. Clôturer définitivement l'exercice</button>
                     <div style="margin-top: 5px; color: #FF0000; font-size: 0.9em;">⚠️ Opération irréversible - Verrouille l'exercice et crée le report à nouveau</div>
+                </div>
+            </div>
+
+            <div class="footer-container">
+                <div class="status-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Tableau de Bord -->
+    <div id="dashboard-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div style="font-weight: bold; color: #FFFF00; font-size: 1.2em;">📊 TABLEAU DE BORD</div>
+            <br>
+
+            <!-- Alertes -->
+            <div id="dashboard-alerts" style="margin-bottom: 20px;"></div>
+
+            <!-- Vue d'ensemble financière -->
+            <div style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 15px; color: #00FF00;">💰 VUE D'ENSEMBLE FINANCIÈRE</div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 25ch; color: #888;">Trésorerie (Banque + Caisse) :</span>
+                            <span id="dashboard-tresorerie" style="font-weight: bold; color: #FFFF00;">0.00 €</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 25ch; color: #888;">Résultat de l'exercice :</span>
+                            <span id="dashboard-resultat" style="font-weight: bold; color: #FFFF00;">0.00 €</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 25ch; color: #888;">Total Produits (7xxxxx) :</span>
+                            <span id="dashboard-produits" style="font-weight: bold; color: #00FF00;">0.00 €</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 25ch; color: #888;">Total Charges (6xxxxx) :</span>
+                            <span id="dashboard-charges" style="font-weight: bold; color: #FF6666;">0.00 €</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indicateurs d'activité -->
+            <div style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 15px; color: #00FF00;">📈 INDICATEURS D'ACTIVITÉ</div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; text-align: center;">
+                    <div style="border: 1px solid #666; padding: 10px;">
+                        <div style="color: #888; font-size: 0.9em; margin-bottom: 5px;">Écritures ce mois</div>
+                        <div id="dashboard-entries-month" style="font-size: 1.5em; font-weight: bold; color: #FFFF00;">0</div>
+                    </div>
+                    <div style="border: 1px solid #666; padding: 10px;">
+                        <div style="color: #888; font-size: 0.9em; margin-bottom: 5px;">Écritures exercice</div>
+                        <div id="dashboard-entries-year" style="font-size: 1.5em; font-weight: bold; color: #FFFF00;">0</div>
+                    </div>
+                    <div style="border: 1px solid #666; padding: 10px;">
+                        <div style="color: #888; font-size: 0.9em; margin-bottom: 5px;">Comptes actifs</div>
+                        <div id="dashboard-accounts-count" style="font-size: 1.5em; font-weight: bold; color: #FFFF00;">0</div>
+                    </div>
+                    <div style="border: 1px solid #666; padding: 10px;">
+                        <div style="color: #888; font-size: 0.9em; margin-bottom: 5px;">Journaux actifs</div>
+                        <div id="dashboard-journals-count" style="font-size: 1.5em; font-weight: bold; color: #FFFF00;">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informations sur l'exercice -->
+            <div style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 15px; color: #00FF00;">📅 EXERCICE COMPTABLE</div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 20ch; color: #888;">Période :</span>
+                            <span id="dashboard-year-period" style="color: #FFFF00;">Non défini</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 20ch; color: #888;">Statut :</span>
+                            <span id="dashboard-year-status" style="color: #00FF00;">OUVERT</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 20ch; color: #888;">Jours restants :</span>
+                            <span id="dashboard-year-days-left" style="color: #FFFF00;">-</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span style="display: inline-block; width: 20ch; color: #888;">Avancement :</span>
+                            <span id="dashboard-year-progress" style="color: #FFFF00;">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top comptes -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <!-- Top charges -->
+                <div style="border: 1px solid #FF6666; padding: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 15px; color: #FF6666;">📉 TOP 5 CHARGES</div>
+                    <div id="dashboard-top-charges" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div style="color: #888;">Chargement...</div>
+                    </div>
+                </div>
+
+                <!-- Top produits -->
+                <div style="border: 1px solid #00FF00; padding: 15px;">
+                    <div style="font-weight: bold; margin-bottom: 15px; color: #00FF00;">📈 TOP 5 PRODUITS</div>
+                    <div id="dashboard-top-produits" style="font-family: 'Courier New', monospace; font-size: 0.9em;">
+                        <div style="color: #888;">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Évolution mensuelle -->
+            <div style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 15px; color: #00FF00;">📊 ÉVOLUTION MENSUELLE (6 derniers mois)</div>
+                <div id="dashboard-monthly-chart" style="font-family: 'Courier New', monospace; font-size: 0.85em; overflow-x: auto;">
+                    <div style="color: #888;">Chargement...</div>
+                </div>
+            </div>
+
+            <!-- Boutons d'action rapide -->
+            <div style="border: 1px solid #FFFF00; padding: 15px;">
+                <div style="font-weight: bold; margin-bottom: 15px; color: #FFFF00;">⚡ ACTIONS RAPIDES</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button id="dashboard-refresh-btn" class="btn">🔄 Actualiser</button>
+                    <button id="dashboard-goto-entries-btn" class="btn">📝 Saisir une écriture</button>
+                    <button id="dashboard-goto-reports-btn" class="btn">📄 Générer un rapport</button>
+                    <button id="dashboard-goto-settings-btn" class="btn">⚙️ Paramètres</button>
                 </div>
             </div>
 

@@ -242,6 +242,36 @@ console.log("Initializing AS400App");
         if (closeYearBtn) {
             closeYearBtn.addEventListener('click', () => this.closeYear());
         }
+
+        // Dashboard buttons
+        const dashboardRefreshBtn = document.getElementById('dashboard-refresh-btn');
+        if (dashboardRefreshBtn) {
+            dashboardRefreshBtn.addEventListener('click', () => this.loadDashboard());
+        }
+
+        const dashboardGotoEntriesBtn = document.getElementById('dashboard-goto-entries-btn');
+        if (dashboardGotoEntriesBtn) {
+            dashboardGotoEntriesBtn.addEventListener('click', () => {
+                const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité'];
+                this.showScreen('entries-screen', [...basePath, 'Écritures']);
+            });
+        }
+
+        const dashboardGotoReportsBtn = document.getElementById('dashboard-goto-reports-btn');
+        if (dashboardGotoReportsBtn) {
+            dashboardGotoReportsBtn.addEventListener('click', () => {
+                const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité'];
+                this.showScreen('reports-screen', [...basePath, 'Éditions']);
+            });
+        }
+
+        const dashboardGotoSettingsBtn = document.getElementById('dashboard-goto-settings-btn');
+        if (dashboardGotoSettingsBtn) {
+            dashboardGotoSettingsBtn.addEventListener('click', () => {
+                const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité'];
+                this.showScreen('settings-screen', [...basePath, 'Paramètres']);
+            });
+        }
     }
 
     async loadAllAccounts() {
@@ -482,6 +512,9 @@ console.log("Initializing AS400App");
             case '6':
                 this.showScreen('year-end-screen', [...basePath, 'Traitements fin exercice']);
                 break;
+            case '7':
+                this.showScreen('dashboard-screen', [...basePath, 'Tableau de bord']);
+                break;
             default:
                 this.showMessage('Option invalide');
         }
@@ -610,6 +643,9 @@ console.log("Initializing AS400App");
             }
             if (screenId === 'year-end-screen') {
                 this.loadYearEndInfo();
+            }
+            if (screenId === 'dashboard-screen') {
+                this.loadDashboard();
             }
             if (screenId === 'entry-input-screen') {
                 document.getElementById('date-comptable').value = '';
@@ -3310,6 +3346,467 @@ console.log("Initializing AS400App");
         } catch (error) {
             console.error('Error closing year:', error);
             this.showMessage(`Erreur de clôture: ${error.message}`);
+        }
+    }
+
+    // ===============================================
+    // Dashboard Functions
+    // ===============================================
+
+    async loadDashboard() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load all data in parallel
+            await Promise.all([
+                this.loadDashboardFinancials(),
+                this.loadDashboardActivity(),
+                this.loadDashboardYearInfo(),
+                this.loadDashboardTopAccounts(),
+                this.loadDashboardMonthlyChart()
+            ]);
+
+            this.showMessage('Tableau de bord actualisé');
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            this.showMessage(`Erreur de chargement: ${error.message}`);
+        }
+    }
+
+    async loadDashboardFinancials() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Get all entries for the current year
+            let query = supabase
+                .from('journal_entries')
+                .select('compte, s, montant')
+                .eq('company_id', this.selectedCompany.id);
+
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                query = query
+                    .gte('date', settings.accounting_year_start)
+                    .lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entries, error } = await query;
+            if (error) throw error;
+
+            // Calculate financials
+            let tresorerie = 0;
+            let produits = 0;
+            let charges = 0;
+
+            if (entries) {
+                entries.forEach(entry => {
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    // Trésorerie: accounts 512xxx (bank) and 53xxx (cash)
+                    if (account.startsWith('512') || account.startsWith('53')) {
+                        tresorerie += isDebit ? amount : -amount;
+                    }
+
+                    // Produits: accounts 7xxxxx
+                    if (account.startsWith('7')) {
+                        produits += isDebit ? -amount : amount;
+                    }
+
+                    // Charges: accounts 6xxxxx
+                    if (account.startsWith('6')) {
+                        charges += isDebit ? amount : -amount;
+                    }
+                });
+            }
+
+            const resultat = produits - charges;
+
+            // Update UI
+            document.getElementById('dashboard-tresorerie').textContent = tresorerie.toFixed(2) + ' €';
+            document.getElementById('dashboard-tresorerie').style.color = tresorerie >= 0 ? '#00FF00' : '#FF0000';
+
+            document.getElementById('dashboard-resultat').textContent = resultat.toFixed(2) + ' €';
+            document.getElementById('dashboard-resultat').style.color = resultat >= 0 ? '#00FF00' : '#FF0000';
+
+            document.getElementById('dashboard-produits').textContent = produits.toFixed(2) + ' €';
+            document.getElementById('dashboard-charges').textContent = charges.toFixed(2) + ' €';
+
+        } catch (error) {
+            console.error('Error loading dashboard financials:', error);
+        }
+    }
+
+    async loadDashboardActivity() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Count entries this month
+            const now = new Date();
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            const { data: entriesMonth, error: errorMonth } = await supabase
+                .from('journal_entries')
+                .select('id', { count: 'exact' })
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', firstDayOfMonth.toISOString().split('T')[0])
+                .lte('date', lastDayOfMonth.toISOString().split('T')[0]);
+
+            if (errorMonth) throw errorMonth;
+
+            // Count entries this year
+            let queryYear = supabase
+                .from('journal_entries')
+                .select('id', { count: 'exact' })
+                .eq('company_id', this.selectedCompany.id);
+
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                queryYear = queryYear
+                    .gte('date', settings.accounting_year_start)
+                    .lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entriesYear, error: errorYear } = await queryYear;
+            if (errorYear) throw errorYear;
+
+            // Count accounts
+            const { data: accounts, error: errorAccounts } = await supabase
+                .from('accounts')
+                .select('id', { count: 'exact' })
+                .eq('user_id', (await supabase.auth.getUser()).data.user.id);
+
+            if (errorAccounts) throw errorAccounts;
+
+            // Count journals
+            const { data: journals, error: errorJournals } = await supabase
+                .from('journals')
+                .select('id', { count: 'exact' })
+                .eq('company_id', this.selectedCompany.id);
+
+            if (errorJournals) throw errorJournals;
+
+            // Update UI
+            document.getElementById('dashboard-entries-month').textContent = entriesMonth ? entriesMonth.length : 0;
+            document.getElementById('dashboard-entries-year').textContent = entriesYear ? entriesYear.length : 0;
+            document.getElementById('dashboard-accounts-count').textContent = accounts ? accounts.length : 0;
+            document.getElementById('dashboard-journals-count').textContent = journals ? journals.length : 0;
+
+        } catch (error) {
+            console.error('Error loading dashboard activity:', error);
+        }
+    }
+
+    async loadDashboardYearInfo() {
+        try {
+            // Load settings
+            const { data: settings, error } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+
+            // Clear any previous alerts
+            document.getElementById('dashboard-alerts').innerHTML = '';
+
+            if (!settings || !settings.accounting_year_start || !settings.accounting_year_end) {
+                // No year defined - show alert
+                document.getElementById('dashboard-year-period').textContent = 'Non défini';
+                document.getElementById('dashboard-year-status').textContent = 'N/A';
+                document.getElementById('dashboard-year-days-left').textContent = '-';
+                document.getElementById('dashboard-year-progress').textContent = '-';
+
+                // Show alert
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = 'border: 1px solid #FF0000; padding: 15px; background-color: #330000; margin-bottom: 10px;';
+                alertDiv.innerHTML = `
+                    <div style="color: #FF0000; font-weight: bold; margin-bottom: 5px;">⚠️ ALERTE</div>
+                    <div style="color: #FFFF00;">Exercice comptable non défini. Allez dans Paramètres pour le configurer.</div>
+                `;
+                document.getElementById('dashboard-alerts').appendChild(alertDiv);
+                return;
+            }
+
+            // Display year info
+            const startDate = new Date(settings.accounting_year_start);
+            const endDate = new Date(settings.accounting_year_end);
+            const now = new Date();
+
+            document.getElementById('dashboard-year-period').textContent =
+                `${startDate.toLocaleDateString('fr-FR')} - ${endDate.toLocaleDateString('fr-FR')}`;
+
+            document.getElementById('dashboard-year-status').textContent =
+                settings.accounting_year_closed ? 'CLOS' : 'OUVERT';
+            document.getElementById('dashboard-year-status').style.color =
+                settings.accounting_year_closed ? '#FF0000' : '#00FF00';
+
+            // Calculate days left
+            const daysLeft = Math.floor((endDate - now) / (1000 * 60 * 60 * 24));
+            document.getElementById('dashboard-year-days-left').textContent =
+                daysLeft > 0 ? `${daysLeft} jours` : 'Exercice terminé';
+            document.getElementById('dashboard-year-days-left').style.color =
+                daysLeft > 30 ? '#00FF00' : (daysLeft > 0 ? '#FFFF00' : '#FF0000');
+
+            // Calculate progress
+            const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const elapsedDays = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+            const progress = Math.min(100, Math.max(0, Math.floor((elapsedDays / totalDays) * 100)));
+            document.getElementById('dashboard-year-progress').textContent = `${progress}%`;
+
+            // Show alert if year is almost over
+            if (daysLeft > 0 && daysLeft <= 30 && !settings.accounting_year_closed) {
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = 'border: 1px solid #FFFF00; padding: 15px; background-color: #332200; margin-bottom: 10px;';
+                alertDiv.innerHTML = `
+                    <div style="color: #FFFF00; font-weight: bold; margin-bottom: 5px;">⚠️ ATTENTION</div>
+                    <div style="color: #FFFF00;">L'exercice comptable se termine dans ${daysLeft} jours. Préparez la clôture.</div>
+                `;
+                document.getElementById('dashboard-alerts').appendChild(alertDiv);
+            }
+
+            // Show alert if year is closed
+            if (settings.accounting_year_closed) {
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = 'border: 1px solid #FF0000; padding: 15px; background-color: #330000; margin-bottom: 10px;';
+                alertDiv.innerHTML = `
+                    <div style="color: #FF0000; font-weight: bold; margin-bottom: 5px;">🔒 INFO</div>
+                    <div style="color: #FFFF00;">Exercice clôturé. Configurez le nouvel exercice dans Paramètres.</div>
+                `;
+                document.getElementById('dashboard-alerts').appendChild(alertDiv);
+            }
+
+        } catch (error) {
+            console.error('Error loading dashboard year info:', error);
+        }
+    }
+
+    async loadDashboardTopAccounts() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Get all entries for the current year
+            let query = supabase
+                .from('journal_entries')
+                .select('compte, s, montant')
+                .eq('company_id', this.selectedCompany.id);
+
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                query = query
+                    .gte('date', settings.accounting_year_start)
+                    .lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entries, error } = await query;
+            if (error) throw error;
+
+            // Calculate balances by account
+            const accountBalances = new Map();
+
+            if (entries) {
+                entries.forEach(entry => {
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    if (!accountBalances.has(account)) {
+                        accountBalances.set(account, 0);
+                    }
+
+                    // For charges (6xxxxx): debit increases
+                    if (account.startsWith('6')) {
+                        accountBalances.set(account, accountBalances.get(account) + (isDebit ? amount : -amount));
+                    }
+
+                    // For produits (7xxxxx): credit increases
+                    if (account.startsWith('7')) {
+                        accountBalances.set(account, accountBalances.get(account) + (isDebit ? -amount : amount));
+                    }
+                });
+            }
+
+            // Get account labels
+            const { data: accounts, error: accountsError } = await supabase
+                .from('accounts')
+                .select('account_number, label')
+                .eq('user_id', (await supabase.auth.getUser()).data.user.id);
+
+            if (accountsError) throw accountsError;
+
+            const accountLabels = new Map();
+            if (accounts) {
+                accounts.forEach(acc => {
+                    accountLabels.set(acc.account_number, acc.label);
+                });
+            }
+
+            // Separate charges and produits
+            const charges = [];
+            const produits = [];
+
+            accountBalances.forEach((balance, account) => {
+                if (account.startsWith('6') && balance > 0) {
+                    charges.push({ account, balance, label: accountLabels.get(account) || '' });
+                }
+                if (account.startsWith('7') && balance > 0) {
+                    produits.push({ account, balance, label: accountLabels.get(account) || '' });
+                }
+            });
+
+            // Sort and take top 5
+            charges.sort((a, b) => b.balance - a.balance);
+            produits.sort((a, b) => b.balance - a.balance);
+
+            const topCharges = charges.slice(0, 5);
+            const topProduits = produits.slice(0, 5);
+
+            // Display top charges
+            const chargesHtml = topCharges.length > 0
+                ? topCharges.map((item, index) => {
+                    const labelShort = item.label.length > 30 ? item.label.substring(0, 30) + '...' : item.label;
+                    return `<div style="margin-bottom: 5px;">
+                        <span style="color: #888;">${index + 1}.</span>
+                        <span style="color: #FFFF00;">${item.account}</span>
+                        <span style="color: #888;"> - ${labelShort}</span>
+                        <br>
+                        <span style="color: #FF6666; margin-left: 2ch;">${item.balance.toFixed(2)} €</span>
+                    </div>`;
+                }).join('')
+                : '<div style="color: #888;">Aucune charge enregistrée</div>';
+
+            document.getElementById('dashboard-top-charges').innerHTML = chargesHtml;
+
+            // Display top produits
+            const produitsHtml = topProduits.length > 0
+                ? topProduits.map((item, index) => {
+                    const labelShort = item.label.length > 30 ? item.label.substring(0, 30) + '...' : item.label;
+                    return `<div style="margin-bottom: 5px;">
+                        <span style="color: #888;">${index + 1}.</span>
+                        <span style="color: #FFFF00;">${item.account}</span>
+                        <span style="color: #888;"> - ${labelShort}</span>
+                        <br>
+                        <span style="color: #00FF00; margin-left: 2ch;">${item.balance.toFixed(2)} €</span>
+                    </div>`;
+                }).join('')
+                : '<div style="color: #888;">Aucun produit enregistré</div>';
+
+            document.getElementById('dashboard-top-produits').innerHTML = produitsHtml;
+
+        } catch (error) {
+            console.error('Error loading top accounts:', error);
+        }
+    }
+
+    async loadDashboardMonthlyChart() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Get entries for the last 6 months
+            const now = new Date();
+            const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+            let query = supabase
+                .from('journal_entries')
+                .select('date, compte, s, montant')
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', sixMonthsAgo.toISOString().split('T')[0]);
+
+            if (settings && settings.accounting_year_end) {
+                query = query.lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entries, error } = await query;
+            if (error) throw error;
+
+            // Group by month
+            const monthlyData = new Map();
+
+            for (let i = 0; i < 6; i++) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                monthlyData.set(key, { produits: 0, charges: 0, month: date });
+            }
+
+            if (entries) {
+                entries.forEach(entry => {
+                    const date = new Date(entry.date);
+                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    if (monthlyData.has(key)) {
+                        const monthData = monthlyData.get(key);
+
+                        // Produits (7xxxxx)
+                        if (account.startsWith('7')) {
+                            monthData.produits += isDebit ? -amount : amount;
+                        }
+
+                        // Charges (6xxxxx)
+                        if (account.startsWith('6')) {
+                            monthData.charges += isDebit ? amount : -amount;
+                        }
+                    }
+                });
+            }
+
+            // Sort by date
+            const sortedMonths = Array.from(monthlyData.values()).sort((a, b) => a.month - b.month);
+
+            // Find max value for scaling
+            const maxValue = Math.max(...sortedMonths.map(m => Math.max(m.produits, m.charges)));
+            const scale = maxValue > 0 ? 40 / maxValue : 1; // 40 chars max width
+
+            // Generate ASCII chart
+            let chartHtml = '<div style="line-height: 1.5;">';
+
+            sortedMonths.forEach(data => {
+                const monthName = data.month.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+                const produitsBar = '█'.repeat(Math.floor(data.produits * scale));
+                const chargesBar = '█'.repeat(Math.floor(data.charges * scale));
+
+                chartHtml += `
+                    <div style="margin-bottom: 10px;">
+                        <div style="color: #888;">${monthName}</div>
+                        <div style="color: #00FF00;">Prod: ${produitsBar} ${data.produits.toFixed(0)} €</div>
+                        <div style="color: #FF6666;">Chrg: ${chargesBar} ${data.charges.toFixed(0)} €</div>
+                    </div>
+                `;
+            });
+
+            chartHtml += '</div>';
+
+            document.getElementById('dashboard-monthly-chart').innerHTML = chartHtml;
+
+        } catch (error) {
+            console.error('Error loading monthly chart:', error);
+            document.getElementById('dashboard-monthly-chart').innerHTML =
+                '<div style="color: #FF0000;">Erreur de chargement du graphique</div>';
         }
     }
 }
