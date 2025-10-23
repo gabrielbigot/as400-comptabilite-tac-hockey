@@ -12,6 +12,14 @@ class AS400App {
         this.currentlyEditingLineIndex = null; // Pour suivre la ligne en cours de modification dans un lot
         this.refreshCallback = null; // Pour rafraîchir la vue après une modification
         this.displayedEntries = []; // Pour stocker les écritures actuellement affichées
+        this.currentReport = null; // Pour stocker les données du rapport actuel
+
+        // Chart.js instances
+        this.monthlyEvolutionChart = null;
+        this.chargesPieChart = null;
+        this.produitsPieChart = null;
+        this.monthlyComparisonChart = null;
+
         this.init();
     }
 
@@ -155,6 +163,121 @@ console.log("Initializing AS400App");
         const mfCompteInput = document.getElementById('mf-compte');
         if (mfCompteInput) {
             mfCompteInput.addEventListener('input', (e) => this.handleAccountInput(e.target.value));
+        }
+
+        // Batch listing filters
+        const batchFilterBtn = document.getElementById('batch-filter-btn');
+        if (batchFilterBtn) {
+            batchFilterBtn.addEventListener('click', () => this.loadBatchesList());
+        }
+
+        const batchResetFilterBtn = document.getElementById('batch-reset-filter-btn');
+        if (batchResetFilterBtn) {
+            batchResetFilterBtn.addEventListener('click', () => this.resetBatchFilters());
+        }
+
+        // Export buttons
+        const exportJournalBtn = document.getElementById('export-journal-btn');
+        if (exportJournalBtn) {
+            exportJournalBtn.addEventListener('click', () => this.exportJournalEntries());
+        }
+
+        const exportAccountBtn = document.getElementById('export-account-btn');
+        if (exportAccountBtn) {
+            exportAccountBtn.addEventListener('click', () => this.exportAccountEntries());
+        }
+
+        const exportBatchesBtn = document.getElementById('export-batches-btn');
+        if (exportBatchesBtn) {
+            exportBatchesBtn.addEventListener('click', () => this.exportBatchesList());
+        }
+
+        const exportAccountsBtn = document.getElementById('export-accounts-btn');
+        if (exportAccountsBtn) {
+            exportAccountsBtn.addEventListener('click', () => this.exportAccounts());
+        }
+
+        // Reports screen
+        const reportTypeSelect = document.getElementById('report-type');
+        if (reportTypeSelect) {
+            reportTypeSelect.addEventListener('change', (e) => this.handleReportTypeChange(e.target.value));
+        }
+
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        if (generateReportBtn) {
+            generateReportBtn.addEventListener('click', () => this.generateReport());
+        }
+
+        const exportReportBtn = document.getElementById('export-report-btn');
+        if (exportReportBtn) {
+            exportReportBtn.addEventListener('click', () => this.exportReport());
+        }
+
+        const printReportBtn = document.getElementById('print-report-btn');
+        if (printReportBtn) {
+            printReportBtn.addEventListener('click', () => this.printReport());
+        }
+
+        // Settings screen buttons
+        const saveYearSettingsBtn = document.getElementById('save-year-settings-btn');
+        if (saveYearSettingsBtn) {
+            saveYearSettingsBtn.addEventListener('click', () => this.saveYearSettings());
+        }
+
+        const saveClubSettingsBtn = document.getElementById('save-club-settings-btn');
+        if (saveClubSettingsBtn) {
+            saveClubSettingsBtn.addEventListener('click', () => this.saveClubSettings());
+        }
+
+        const saveDefaultAccountsBtn = document.getElementById('save-default-accounts-btn');
+        if (saveDefaultAccountsBtn) {
+            saveDefaultAccountsBtn.addEventListener('click', () => this.saveDefaultAccounts());
+        }
+
+        // Year-end processing buttons
+        const calculateResultBtn = document.getElementById('calculate-result-btn');
+        if (calculateResultBtn) {
+            calculateResultBtn.addEventListener('click', () => this.calculateYearResult());
+        }
+
+        const generateClosingEntriesBtn = document.getElementById('generate-closing-entries-btn');
+        if (generateClosingEntriesBtn) {
+            generateClosingEntriesBtn.addEventListener('click', () => this.generateClosingEntries());
+        }
+
+        const closeYearBtn = document.getElementById('close-year-btn');
+        if (closeYearBtn) {
+            closeYearBtn.addEventListener('click', () => this.closeYear());
+        }
+
+        // Dashboard buttons
+        const dashboardRefreshBtn = document.getElementById('dashboard-refresh-btn');
+        if (dashboardRefreshBtn) {
+            dashboardRefreshBtn.addEventListener('click', () => this.loadDashboard());
+        }
+
+        const dashboardGotoEntriesBtn = document.getElementById('dashboard-goto-entries-btn');
+        if (dashboardGotoEntriesBtn) {
+            dashboardGotoEntriesBtn.addEventListener('click', () => {
+                const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité'];
+                this.showScreen('entries-screen', [...basePath, 'Écritures']);
+            });
+        }
+
+        const dashboardGotoReportsBtn = document.getElementById('dashboard-goto-reports-btn');
+        if (dashboardGotoReportsBtn) {
+            dashboardGotoReportsBtn.addEventListener('click', () => {
+                const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité'];
+                this.showScreen('reports-screen', [...basePath, 'Éditions']);
+            });
+        }
+
+        const dashboardGotoSettingsBtn = document.getElementById('dashboard-goto-settings-btn');
+        if (dashboardGotoSettingsBtn) {
+            dashboardGotoSettingsBtn.addEventListener('click', () => {
+                const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité'];
+                this.showScreen('settings-screen', [...basePath, 'Paramètres']);
+            });
         }
     }
 
@@ -387,6 +510,18 @@ console.log("Initializing AS400App");
             case '3':
                 this.showScreen('entries-screen', [...basePath, 'Écritures']);
                 break;
+            case '4':
+                this.showScreen('reports-screen', [...basePath, 'Éditions']);
+                break;
+            case '5':
+                this.showScreen('settings-screen', [...basePath, 'Paramètres']);
+                break;
+            case '6':
+                this.showScreen('year-end-screen', [...basePath, 'Traitements fin exercice']);
+                break;
+            case '7':
+                this.showScreen('dashboard-screen', [...basePath, 'Tableau de bord']);
+                break;
             default:
                 this.showMessage('Option invalide');
         }
@@ -396,6 +531,8 @@ console.log("Initializing AS400App");
         const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité', 'Écritures'];
         if (choice === '3') {
             this.showScreen('entry-input-screen', [...basePath, 'Saisie d\'écriture']);
+        } else if (choice === '4') {
+            this.showScreen('batches-screen', [...basePath, 'Liste des lots']);
         } else {
             this.showMessage('Option invalide');
         }
@@ -501,6 +638,22 @@ console.log("Initializing AS400App");
             if (screenId === 'entry-detail-screen') this.initializeEntryDetailScreen(screen);
             if (screenId === 'accounts-screen') this.updateAccountsTable();
             if (screenId === 'journals-screen') this.updateJournalsTable();
+            if (screenId === 'batches-screen') {
+                this.loadJournalsForBatchFilter();
+                this.loadBatchesList();
+            }
+            if (screenId === 'reports-screen') {
+                this.initializeReportsScreen();
+            }
+            if (screenId === 'settings-screen') {
+                this.loadSettings();
+            }
+            if (screenId === 'year-end-screen') {
+                this.loadYearEndInfo();
+            }
+            if (screenId === 'dashboard-screen') {
+                this.loadDashboard();
+            }
             if (screenId === 'entry-input-screen') {
                 document.getElementById('date-comptable').value = '';
                 document.getElementById('journal-code-input').value = '';
@@ -582,6 +735,16 @@ console.log("Initializing AS400App");
             journalDisplay.textContent = 'Journal: Non défini';
             screenElement.dataset.journalId = '';
             console.warn('[initializeEntryDetailScreen] Journal not set or invalid.', this.currentJournal); // DEBUG
+        }
+
+        // Ensure buttons are visible (may have been hidden in view mode)
+        const validateBatchBtn = document.getElementById('validate-batch-btn');
+        if (validateBatchBtn) {
+            validateBatchBtn.style.display = 'inline-block';
+        }
+        const addLineBtn = document.getElementById('add-entry-line-btn');
+        if (addLineBtn) {
+            addLineBtn.style.display = 'inline-block';
         }
 
         this.updateEntriesTable(this.entryBatch);
@@ -1451,7 +1614,7 @@ console.log("Initializing AS400App");
 
             this.currentEditingBatchId = batchId;
             this.entryBatch = entries.map(e => ({ ...e })); // Copie des écritures
-            
+
             // Utiliser les informations de la première écriture pour la navigation
             const firstEntry = entries[0];
             const journal = { id: firstEntry.journal_id, name: 'Modification' }; // Simplification
@@ -1464,7 +1627,14 @@ console.log("Initializing AS400App");
             const validateBatchBtn = document.getElementById('validate-batch-btn');
             if (validateBatchBtn) {
                 validateBatchBtn.dataset.batchId = batchId;
+                validateBatchBtn.style.display = 'inline-block'; // Ensure visible
                 console.log(`[startModification] Stored batchId ${batchId} on validate-batch-btn.`);
+            }
+
+            // Ensure add line button is visible
+            const addLineBtn = document.getElementById('add-entry-line-btn');
+            if (addLineBtn) {
+                addLineBtn.style.display = 'inline-block';
             }
 
             // Ensure the UI knows we are in edit mode
@@ -1589,6 +1759,2392 @@ console.log("Initializing AS400App");
         printWindow.document.close();
         printWindow.focus();
         printWindow.print();
+    }
+
+    async loadJournalsForBatchFilter() {
+        const journalSelect = document.getElementById('batch-filter-journal');
+        if (!journalSelect) return;
+
+        journalSelect.innerHTML = '<option value="">Tous les journaux</option>';
+
+        try {
+            const { data: journals, error } = await supabase
+                .from('journals')
+                .select('id, code, name')
+                .eq('company_id', this.selectedCompany.id)
+                .order('code', { ascending: true });
+
+            if (error) throw error;
+
+            journals.forEach(journal => {
+                const option = document.createElement('option');
+                option.value = journal.id;
+                option.textContent = `${journal.code} - ${journal.name}`;
+                journalSelect.appendChild(option);
+            });
+        } catch (error) {
+            this.showMessage(`Erreur de chargement des journaux: ${error.message}`);
+        }
+    }
+
+    async loadBatchesList() {
+        const tableContent = document.getElementById('batches-table-content');
+        tableContent.innerHTML = '<span class="no-data">(Chargement des lots...)</span>';
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            tableContent.innerHTML = '<span class="no-data">(Veuillez sélectionner une société)</span>';
+            return;
+        }
+
+        try {
+            // Get filter values
+            const journalFilter = document.getElementById('batch-filter-journal').value;
+            const startDate = document.getElementById('batch-filter-start-date').value;
+            const endDate = document.getElementById('batch-filter-end-date').value;
+
+            // Build query
+            let query = supabase
+                .from('journal_entries')
+                .select('batch_id, journal_id, date, compte, s, montant, libelle')
+                .eq('user_id', user.id)
+                .eq('company_id', this.selectedCompany.id)
+                .not('batch_id', 'is', null);
+
+            if (journalFilter) {
+                query = query.eq('journal_id', journalFilter);
+            }
+
+            const { data: entries, error } = await query.order('date', { ascending: false });
+
+            if (error) throw error;
+
+            // Filter by date on client side (because date format is DD/MM/YYYY)
+            let filteredEntries = entries;
+            if (startDate || endDate) {
+                filteredEntries = entries.filter(entry => {
+                    const parts = entry.date.split('/');
+                    const entryDay = parseInt(parts[0], 10);
+                    const entryMonth = parseInt(parts[1], 10) - 1;
+                    let entryYear = parseInt(parts[2], 10);
+
+                    if (entryYear < 100) {
+                        const currentYearLastTwoDigits = new Date().getFullYear() % 100;
+                        entryYear = (entryYear <= currentYearLastTwoDigits + 10) ? 2000 + entryYear : 1900 + entryYear;
+                    }
+                    const entryDate = new Date(entryYear, entryMonth, entryDay);
+                    entryDate.setHours(0, 0, 0, 0);
+
+                    let valid = true;
+                    if (startDate) {
+                        const filterStartDate = new Date(startDate);
+                        filterStartDate.setHours(0, 0, 0, 0);
+                        valid = valid && entryDate >= filterStartDate;
+                    }
+                    if (endDate) {
+                        const filterEndDate = new Date(endDate);
+                        filterEndDate.setHours(23, 59, 59, 999);
+                        valid = valid && entryDate <= filterEndDate;
+                    }
+                    return valid;
+                });
+            }
+
+            // Group entries by batch_id
+            const batchesMap = new Map();
+            filteredEntries.forEach(entry => {
+                if (!batchesMap.has(entry.batch_id)) {
+                    batchesMap.set(entry.batch_id, {
+                        batch_id: entry.batch_id,
+                        journal_id: entry.journal_id,
+                        date: entry.date,
+                        entries: [],
+                        totalDebit: 0,
+                        totalCredit: 0
+                    });
+                }
+                const batch = batchesMap.get(entry.batch_id);
+                batch.entries.push(entry);
+
+                const amount = parseFloat(entry.montant) || 0;
+                if (entry.s.toUpperCase() !== 'C') {
+                    batch.totalDebit += amount;
+                } else {
+                    batch.totalCredit += amount;
+                }
+            });
+
+            // Get journal names
+            const journalIds = [...new Set(filteredEntries.map(e => e.journal_id))];
+            let journalsMap = new Map();
+
+            if (journalIds.length > 0) {
+                const { data: journals, error: journalError } = await supabase
+                    .from('journals')
+                    .select('id, code, name')
+                    .in('id', journalIds);
+
+                if (journalError) throw journalError;
+                journals.forEach(j => journalsMap.set(j.id, `${j.code} - ${j.name}`));
+            }
+
+            // Convert map to array and sort by date (most recent first)
+            const batches = Array.from(batchesMap.values()).sort((a, b) => {
+                const dateA = this.parseDateString(a.date);
+                const dateB = this.parseDateString(b.date);
+                return dateB - dateA;
+            });
+
+            tableContent.innerHTML = '';
+
+            if (batches.length === 0) {
+                tableContent.innerHTML = '<span class="no-data">(Aucun lot à afficher)</span>';
+                return;
+            }
+
+            batches.forEach((batch, index) => {
+                const journalName = journalsMap.get(batch.journal_id) || 'Inconnu';
+                const row = document.createElement('div');
+                row.className = 'table-row';
+                row.innerHTML = `
+                    <span style="display: inline-block; width: 5ch;">${index + 1}</span>
+                    <span style="display: inline-block; width: 12ch;">${this.formatDateForDisplay(batch.date)}</span>
+                    <span style="display: inline-block; width: 18ch;">${journalName}</span>
+                    <span style="display: inline-block; width: 8ch; text-align: center;">${batch.entries.length}</span>
+                    <span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(batch.totalDebit)}</span>
+                    <span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(batch.totalCredit)}</span>
+                    <span style="display: inline-block; width: 30ch; text-align: center;">
+                        <button class="action-btn view-batch-btn" data-batch-id="${batch.batch_id}" style="margin-right: 5px;">Consulter</button>
+                        <button class="action-btn modify-batch-btn" data-batch-id="${batch.batch_id}" style="margin-right: 5px;">Modifier</button>
+                        <button class="action-btn delete-batch-btn" data-batch-id="${batch.batch_id}">Supprimer</button>
+                    </span>
+                `;
+                tableContent.appendChild(row);
+            });
+
+            // Add event listeners for batch actions
+            tableContent.querySelectorAll('.view-batch-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.viewBatch(e.target.dataset.batchId);
+                });
+            });
+            tableContent.querySelectorAll('.modify-batch-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.refreshCallback = () => this.loadBatchesList();
+                    this.startModification(e.target.dataset.batchId);
+                });
+            });
+            tableContent.querySelectorAll('.delete-batch-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    this.refreshCallback = () => this.loadBatchesList();
+                    this.deleteEntryBatch(e.target.dataset.batchId);
+                });
+            });
+
+        } catch (error) {
+            this.showMessage(`Erreur de chargement des lots: ${error.message}`);
+            console.error('Error loading batches:', error);
+        }
+    }
+
+    parseDateString(dateString) {
+        const parts = dateString.split('/');
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        let year = parseInt(parts[2], 10);
+
+        if (year < 100) {
+            const currentYearLastTwoDigits = new Date().getFullYear() % 100;
+            year = (year <= currentYearLastTwoDigits + 10) ? 2000 + year : 1900 + year;
+        }
+
+        return new Date(year, month, day);
+    }
+
+    async viewBatch(batchId) {
+        if (!batchId) {
+            this.showMessage('Erreur: Identifiant de lot manquant.');
+            return;
+        }
+
+        try {
+            const { data: entries, error } = await supabase
+                .from('journal_entries')
+                .select('*')
+                .eq('batch_id', batchId);
+
+            if (error) throw error;
+            if (entries.length === 0) {
+                this.showMessage('Erreur: Impossible de trouver les écritures.');
+                return;
+            }
+
+            // Store entries in read-only mode
+            this.entryBatch = entries.map(e => ({ ...e }));
+            this.currentEditingBatchId = null; // Read-only mode
+
+            const firstEntry = entries[0];
+            const journal = { id: firstEntry.journal_id, name: 'Consultation' };
+            this.currentJournal = journal;
+
+            const basePath = ['AS400 beta 2', this.selectedCompany.name, 'Menu Comptabilité', 'Écritures', 'Liste des lots'];
+            this.showScreen('entry-detail-screen', [...basePath, 'Consultation Lot']);
+
+            // Hide the validation button in view mode
+            const validateBatchBtn = document.getElementById('validate-batch-btn');
+            if (validateBatchBtn) {
+                validateBatchBtn.style.display = 'none';
+            }
+
+            // Hide the add line button in view mode
+            const addLineBtn = document.getElementById('add-entry-line-btn');
+            if (addLineBtn) {
+                addLineBtn.style.display = 'none';
+            }
+
+            this.updateEntriesTable(this.entryBatch);
+
+        } catch (error) {
+            this.showMessage(`Erreur lors de la consultation du lot: ${error.message}`);
+        }
+    }
+
+    resetBatchFilters() {
+        document.getElementById('batch-filter-journal').value = '';
+        document.getElementById('batch-filter-start-date').value = '';
+        document.getElementById('batch-filter-end-date').value = '';
+        this.loadBatchesList();
+    }
+
+    // ===== EXPORT FUNCTIONS =====
+
+    exportToCSV(data, filename) {
+        if (!data || data.length === 0) {
+            this.showMessage('Aucune donnée à exporter.');
+            return;
+        }
+
+        // Get headers from first object
+        const headers = Object.keys(data[0]);
+
+        // Create CSV content
+        let csvContent = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+
+        // Add headers
+        csvContent += headers.map(h => `"${h}"`).join(';') + '\r\n';
+
+        // Add rows
+        data.forEach(row => {
+            const values = headers.map(header => {
+                const value = row[header] !== null && row[header] !== undefined ? row[header] : '';
+                return `"${String(value).replace(/"/g, '""')}"`;
+            });
+            csvContent += values.join(';') + '\r\n';
+        });
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        this.showMessage('Export CSV réussi !');
+    }
+
+    exportJournalEntries() {
+        if (!this.displayedEntries || this.displayedEntries.length === 0) {
+            this.showMessage('Aucune écriture à exporter.');
+            return;
+        }
+
+        const journalName = this.currentJournal ? this.currentJournal.name : 'Journal';
+        const exportData = this.displayedEntries.map(entry => ({
+            'Date': this.formatDateForDisplay(entry.date),
+            'Compte': entry.compte,
+            'Libellé': entry.libelle,
+            'Débit': entry.s.toUpperCase() !== 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Crédit': entry.s.toUpperCase() === 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Batch ID': entry.batch_id || ''
+        }));
+
+        const filename = `journal_${journalName}_${new Date().toISOString().slice(0, 10)}.csv`;
+        this.exportToCSV(exportData, filename);
+    }
+
+    exportAccountEntries() {
+        if (!this.displayedEntries || this.displayedEntries.length === 0) {
+            this.showMessage('Aucune écriture à exporter.');
+            return;
+        }
+
+        const accountNumber = this.navigationPath[this.navigationPath.length - 1];
+        const exportData = this.displayedEntries.map(entry => ({
+            'Date': this.formatDateForDisplay(entry.date),
+            'Libellé': entry.libelle,
+            'Débit': entry.s.toUpperCase() !== 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Crédit': entry.s.toUpperCase() === 'C' ? this.formatAmount(parseFloat(entry.montant)) : '',
+            'Batch ID': entry.batch_id || ''
+        }));
+
+        const filename = `compte_${accountNumber}_${new Date().toISOString().slice(0, 10)}.csv`;
+        this.exportToCSV(exportData, filename);
+    }
+
+    async exportBatchesList() {
+        const tableContent = document.getElementById('batches-table-content');
+
+        // Check if we have batches to export
+        if (!tableContent || tableContent.querySelector('.no-data')) {
+            this.showMessage('Aucun lot à exporter.');
+            return;
+        }
+
+        this.showMessage('Préparation de l\'export...');
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || !this.selectedCompany) {
+                this.showMessage('Erreur: utilisateur ou société non défini.');
+                return;
+            }
+
+            // Get filter values
+            const journalFilter = document.getElementById('batch-filter-journal').value;
+            const startDate = document.getElementById('batch-filter-start-date').value;
+            const endDate = document.getElementById('batch-filter-end-date').value;
+
+            // Build query
+            let query = supabase
+                .from('journal_entries')
+                .select('batch_id, journal_id, date, compte, s, montant, libelle')
+                .eq('user_id', user.id)
+                .eq('company_id', this.selectedCompany.id)
+                .not('batch_id', 'is', null);
+
+            if (journalFilter) {
+                query = query.eq('journal_id', journalFilter);
+            }
+
+            const { data: entries, error } = await query.order('date', { ascending: false });
+
+            if (error) throw error;
+
+            // Filter by date on client side
+            let filteredEntries = entries;
+            if (startDate || endDate) {
+                filteredEntries = entries.filter(entry => {
+                    const entryDate = this.parseDateString(entry.date);
+                    let valid = true;
+                    if (startDate) {
+                        const filterStartDate = new Date(startDate);
+                        filterStartDate.setHours(0, 0, 0, 0);
+                        valid = valid && entryDate >= filterStartDate;
+                    }
+                    if (endDate) {
+                        const filterEndDate = new Date(endDate);
+                        filterEndDate.setHours(23, 59, 59, 999);
+                        valid = valid && entryDate <= filterEndDate;
+                    }
+                    return valid;
+                });
+            }
+
+            // Group entries by batch_id
+            const batchesMap = new Map();
+            filteredEntries.forEach(entry => {
+                if (!batchesMap.has(entry.batch_id)) {
+                    batchesMap.set(entry.batch_id, {
+                        batch_id: entry.batch_id,
+                        journal_id: entry.journal_id,
+                        date: entry.date,
+                        entries: [],
+                        totalDebit: 0,
+                        totalCredit: 0
+                    });
+                }
+                const batch = batchesMap.get(entry.batch_id);
+                batch.entries.push(entry);
+
+                const amount = parseFloat(entry.montant) || 0;
+                if (entry.s.toUpperCase() !== 'C') {
+                    batch.totalDebit += amount;
+                } else {
+                    batch.totalCredit += amount;
+                }
+            });
+
+            // Get journal names
+            const journalIds = [...new Set(filteredEntries.map(e => e.journal_id))];
+            let journalsMap = new Map();
+
+            if (journalIds.length > 0) {
+                const { data: journals, error: journalError } = await supabase
+                    .from('journals')
+                    .select('id, code, name')
+                    .in('id', journalIds);
+
+                if (journalError) throw journalError;
+                journals.forEach(j => journalsMap.set(j.id, `${j.code} - ${j.name}`));
+            }
+
+            // Convert to array for export
+            const batches = Array.from(batchesMap.values());
+
+            const exportData = batches.map(batch => ({
+                'Date': this.formatDateForDisplay(batch.date),
+                'Journal': journalsMap.get(batch.journal_id) || 'Inconnu',
+                'Nombre de lignes': batch.entries.length,
+                'Total Débit': this.formatAmount(batch.totalDebit),
+                'Total Crédit': this.formatAmount(batch.totalCredit),
+                'Batch ID': batch.batch_id
+            }));
+
+            const filename = `lots_${this.selectedCompany.name}_${new Date().toISOString().slice(0, 10)}.csv`;
+            this.exportToCSV(exportData, filename);
+
+        } catch (error) {
+            this.showMessage(`Erreur lors de l'export: ${error.message}`);
+            console.error('Error exporting batches:', error);
+        }
+    }
+
+    async exportAccounts() {
+        this.showMessage('Préparation de l\'export du plan comptable...');
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                this.showMessage('Veuillez vous connecter.');
+                return;
+            }
+
+            const { data: accounts, error } = await supabase
+                .from('accounts')
+                .select('account_number, label')
+                .eq('user_id', user.id)
+                .order('account_number', { ascending: true });
+
+            if (error) throw error;
+
+            if (!accounts || accounts.length === 0) {
+                this.showMessage('Aucun compte à exporter.');
+                return;
+            }
+
+            const exportData = accounts.map(account => ({
+                'Numéro de compte': account.account_number,
+                'Libellé': account.label
+            }));
+
+            const filename = `plan_comptable_${new Date().toISOString().slice(0, 10)}.csv`;
+            this.exportToCSV(exportData, filename);
+
+        } catch (error) {
+            this.showMessage(`Erreur lors de l'export: ${error.message}`);
+            console.error('Error exporting accounts:', error);
+        }
+    }
+
+    // ===== REPORTS FUNCTIONS =====
+
+    initializeReportsScreen() {
+        // Reset form
+        document.getElementById('report-type').value = '';
+        document.getElementById('report-start-date').value = '';
+        document.getElementById('report-end-date').value = '';
+        document.getElementById('ledger-account-number').value = '';
+        document.getElementById('ledger-account-filter').style.display = 'none';
+        document.getElementById('export-report-btn').style.display = 'none';
+        document.getElementById('print-report-btn').style.display = 'none';
+        document.getElementById('report-content').innerHTML = '<span class="no-data">Sélectionnez un type de rapport et cliquez sur "Générer le rapport"</span>';
+        this.currentReport = null;
+    }
+
+    handleReportTypeChange(reportType) {
+        const ledgerFilter = document.getElementById('ledger-account-filter');
+        if (reportType === 'ledger') {
+            ledgerFilter.style.display = 'block';
+        } else {
+            ledgerFilter.style.display = 'none';
+        }
+    }
+
+    async generateReport() {
+        const reportType = document.getElementById('report-type').value;
+
+        if (!reportType) {
+            this.showMessage('Veuillez sélectionner un type de rapport.');
+            return;
+        }
+
+        this.showMessage('Génération du rapport en cours...');
+
+        try {
+            switch (reportType) {
+                case 'balance':
+                    await this.generateBalanceReport();
+                    break;
+                case 'ledger':
+                    await this.generateLedgerReport();
+                    break;
+                case 'centralized':
+                    await this.generateCentralizedReport();
+                    break;
+                default:
+                    this.showMessage('Type de rapport non reconnu.');
+            }
+        } catch (error) {
+            this.showMessage(`Erreur: ${error.message}`);
+            console.error('Error generating report:', error);
+        }
+    }
+
+    async generateBalanceReport() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            this.showMessage('Utilisateur ou société non défini.');
+            return;
+        }
+
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+
+        // Get all entries
+        let query = supabase
+            .from('journal_entries')
+            .select('compte, s, montant, date')
+            .eq('user_id', user.id)
+            .eq('company_id', this.selectedCompany.id);
+
+        const { data: entries, error } = await query;
+
+        if (error) throw error;
+
+        // Filter by date if specified
+        let filteredEntries = entries;
+        if (startDate || endDate) {
+            filteredEntries = entries.filter(entry => {
+                const entryDate = this.parseDateString(entry.date);
+                let valid = true;
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    valid = valid && entryDate >= filterStartDate;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    valid = valid && entryDate <= filterEndDate;
+                }
+                return valid;
+            });
+        }
+
+        // Group by account
+        const accountsMap = new Map();
+        filteredEntries.forEach(entry => {
+            if (!accountsMap.has(entry.compte)) {
+                accountsMap.set(entry.compte, {
+                    account: entry.compte,
+                    debit: 0,
+                    credit: 0
+                });
+            }
+            const account = accountsMap.get(entry.compte);
+            const amount = parseFloat(entry.montant) || 0;
+            if (entry.s.toUpperCase() !== 'C') {
+                account.debit += amount;
+            } else {
+                account.credit += amount;
+            }
+        });
+
+        // Get account labels
+        const accountNumbers = Array.from(accountsMap.keys());
+        const { data: accountsData, error: accountsError } = await supabase
+            .from('accounts')
+            .select('account_number, label')
+            .in('account_number', accountNumbers);
+
+        if (accountsError) throw accountsError;
+
+        const accountLabelsMap = new Map();
+        accountsData.forEach(acc => accountLabelsMap.set(acc.account_number, acc.label));
+
+        // Convert to array and sort
+        const balanceData = Array.from(accountsMap.values())
+            .map(item => ({
+                ...item,
+                label: accountLabelsMap.get(item.account) || 'Inconnu',
+                balance: item.debit - item.credit
+            }))
+            .sort((a, b) => a.account.localeCompare(b.account));
+
+        // Calculate totals
+        const totalDebit = balanceData.reduce((sum, item) => sum + item.debit, 0);
+        const totalCredit = balanceData.reduce((sum, item) => sum + item.credit, 0);
+
+        // Display report
+        const reportContent = document.getElementById('report-content');
+        let html = '<div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #FFFF00;">';
+        html += 'BALANCE DES COMPTES';
+        if (startDate || endDate) {
+            html += '<br>Période: ';
+            if (startDate) html += `du ${new Date(startDate).toLocaleDateString('fr-FR')} `;
+            if (endDate) html += `au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+        }
+        html += '</div>';
+
+        html += '<div class="table-header" style="border-bottom: 1px solid #00FF00; padding-bottom: 5px;">';
+        html += '<span style="display: inline-block; width: 12ch;">Compte</span>';
+        html += '<span style="display: inline-block; width: 35ch;">Libellé</span>';
+        html += '<span style="display: inline-block; width: 15ch; text-align: right;">Débit</span>';
+        html += '<span style="display: inline-block; width: 15ch; text-align: right;">Crédit</span>';
+        html += '<span style="display: inline-block; width: 15ch; text-align: right;">Solde</span>';
+        html += '</div>';
+
+        balanceData.forEach(item => {
+            html += '<div class="table-row" style="padding: 2px 0;">';
+            html += `<span style="display: inline-block; width: 12ch;">${item.account}</span>`;
+            html += `<span style="display: inline-block; width: 35ch;">${item.label}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(item.debit)}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(item.credit)}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(item.balance)}</span>`;
+            html += '</div>';
+        });
+
+        html += '<div style="border-top: 1px solid #00FF00; margin-top: 10px; padding-top: 5px; font-weight: bold;">';
+        html += `<span style="display: inline-block; width: 47ch;">TOTAUX</span>`;
+        html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalDebit)}</span>`;
+        html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalCredit)}</span>`;
+        html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalDebit - totalCredit)}</span>`;
+        html += '</div>';
+
+        reportContent.innerHTML = html;
+
+        // Store report data for export
+        this.currentReport = {
+            type: 'balance',
+            data: balanceData,
+            totals: { debit: totalDebit, credit: totalCredit, balance: totalDebit - totalCredit },
+            period: { startDate, endDate }
+        };
+
+        // Show export/print buttons
+        document.getElementById('export-report-btn').style.display = 'inline-block';
+        document.getElementById('print-report-btn').style.display = 'inline-block';
+
+        this.showMessage('Rapport généré avec succès !');
+    }
+
+    async generateLedgerReport() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            this.showMessage('Utilisateur ou société non défini.');
+            return;
+        }
+
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+        const accountFilter = document.getElementById('ledger-account-number').value.trim();
+
+        // Get all entries
+        let query = supabase
+            .from('journal_entries')
+            .select('compte, date, libelle, s, montant')
+            .eq('user_id', user.id)
+            .eq('company_id', this.selectedCompany.id);
+
+        if (accountFilter) {
+            query = query.eq('compte', accountFilter);
+        }
+
+        const { data: entries, error } = await query.order('compte').order('date');
+
+        if (error) throw error;
+
+        // Filter by date if specified
+        let filteredEntries = entries;
+        if (startDate || endDate) {
+            filteredEntries = entries.filter(entry => {
+                const entryDate = this.parseDateString(entry.date);
+                let valid = true;
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    valid = valid && entryDate >= filterStartDate;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    valid = valid && entryDate <= filterEndDate;
+                }
+                return valid;
+            });
+        }
+
+        if (filteredEntries.length === 0) {
+            document.getElementById('report-content').innerHTML = '<span class="no-data">Aucune écriture trouvée pour les critères sélectionnés</span>';
+            return;
+        }
+
+        // Group by account
+        const accountsMap = new Map();
+        filteredEntries.forEach(entry => {
+            if (!accountsMap.has(entry.compte)) {
+                accountsMap.set(entry.compte, []);
+            }
+            accountsMap.get(entry.compte).push(entry);
+        });
+
+        // Get account labels
+        const accountNumbers = Array.from(accountsMap.keys());
+        const { data: accountsData, error: accountsError } = await supabase
+            .from('accounts')
+            .select('account_number, label')
+            .in('account_number', accountNumbers);
+
+        if (accountsError) throw accountsError;
+
+        const accountLabelsMap = new Map();
+        accountsData.forEach(acc => accountLabelsMap.set(acc.account_number, acc.label));
+
+        // Display report
+        const reportContent = document.getElementById('report-content');
+        let html = '<div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #FFFF00;">';
+        html += 'GRAND LIVRE';
+        if (startDate || endDate) {
+            html += '<br>Période: ';
+            if (startDate) html += `du ${new Date(startDate).toLocaleDateString('fr-FR')} `;
+            if (endDate) html += `au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+        }
+        if (accountFilter) {
+            html += `<br>Compte: ${accountFilter}`;
+        }
+        html += '</div>';
+
+        const ledgerData = [];
+
+        accountsMap.forEach((entries, accountNumber) => {
+            const label = accountLabelsMap.get(accountNumber) || 'Inconnu';
+
+            html += `<div style="margin-top: 20px; border-top: 2px solid #00FF00; padding-top: 10px;">`;
+            html += `<div style="font-weight: bold; color: #FFFF00;">Compte ${accountNumber} - ${label}</div>`;
+            html += '<div class="table-header" style="border-bottom: 1px solid #00FF00; padding: 5px 0; margin-top: 5px;">';
+            html += '<span style="display: inline-block; width: 12ch;">Date</span>';
+            html += '<span style="display: inline-block; width: 40ch;">Libellé</span>';
+            html += '<span style="display: inline-block; width: 15ch; text-align: right;">Débit</span>';
+            html += '<span style="display: inline-block; width: 15ch; text-align: right;">Crédit</span>';
+            html += '</div>';
+
+            let totalDebit = 0;
+            let totalCredit = 0;
+
+            entries.forEach(entry => {
+                const amount = parseFloat(entry.montant) || 0;
+                const isDebit = entry.s.toUpperCase() !== 'C';
+
+                if (isDebit) totalDebit += amount;
+                else totalCredit += amount;
+
+                html += '<div class="table-row" style="padding: 2px 0;">';
+                html += `<span style="display: inline-block; width: 12ch;">${this.formatDateForDisplay(entry.date)}</span>`;
+                html += `<span style="display: inline-block; width: 40ch;">${entry.libelle}</span>`;
+                html += `<span style="display: inline-block; width: 15ch; text-align: right;">${isDebit ? this.formatAmount(amount) : ''}</span>`;
+                html += `<span style="display: inline-block; width: 15ch; text-align: right;">${!isDebit ? this.formatAmount(amount) : ''}</span>`;
+                html += '</div>';
+
+                ledgerData.push({
+                    compte: accountNumber,
+                    label: label,
+                    date: this.formatDateForDisplay(entry.date),
+                    libelle: entry.libelle,
+                    debit: isDebit ? amount : 0,
+                    credit: !isDebit ? amount : 0
+                });
+            });
+
+            html += '<div style="border-top: 1px solid #00FF00; margin-top: 5px; padding-top: 5px; font-weight: bold;">';
+            html += `<span style="display: inline-block; width: 52ch;">Total compte ${accountNumber}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalDebit)}</span>`;
+            html += `<span style="display: inline-block; width: 15ch; text-align: right;">${this.formatAmount(totalCredit)}</span>`;
+            html += '</div>';
+            html += `<div style="font-weight: bold; margin-top: 5px;">Solde: ${this.formatAmount(totalDebit - totalCredit)}</div>`;
+            html += '</div>';
+        });
+
+        reportContent.innerHTML = html;
+
+        // Store report data for export
+        this.currentReport = {
+            type: 'ledger',
+            data: ledgerData,
+            period: { startDate, endDate },
+            accountFilter
+        };
+
+        // Show export/print buttons
+        document.getElementById('export-report-btn').style.display = 'inline-block';
+        document.getElementById('print-report-btn').style.display = 'inline-block';
+
+        this.showMessage('Rapport généré avec succès !');
+    }
+
+    async generateCentralizedReport() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !this.selectedCompany) {
+            this.showMessage('Utilisateur ou société non défini.');
+            return;
+        }
+
+        const startDate = document.getElementById('report-start-date').value;
+        const endDate = document.getElementById('report-end-date').value;
+
+        // Get all entries with journal info
+        let query = supabase
+            .from('journal_entries')
+            .select('journal_id, s, montant, date')
+            .eq('user_id', user.id)
+            .eq('company_id', this.selectedCompany.id);
+
+        const { data: entries, error } = await query;
+
+        if (error) throw error;
+
+        // Filter by date if specified
+        let filteredEntries = entries;
+        if (startDate || endDate) {
+            filteredEntries = entries.filter(entry => {
+                const entryDate = this.parseDateString(entry.date);
+                let valid = true;
+                if (startDate) {
+                    const filterStartDate = new Date(startDate);
+                    filterStartDate.setHours(0, 0, 0, 0);
+                    valid = valid && entryDate >= filterStartDate;
+                }
+                if (endDate) {
+                    const filterEndDate = new Date(endDate);
+                    filterEndDate.setHours(23, 59, 59, 999);
+                    valid = valid && entryDate <= filterEndDate;
+                }
+                return valid;
+            });
+        }
+
+        // Group by journal
+        const journalsMap = new Map();
+        filteredEntries.forEach(entry => {
+            if (!journalsMap.has(entry.journal_id)) {
+                journalsMap.set(entry.journal_id, {
+                    journal_id: entry.journal_id,
+                    debit: 0,
+                    credit: 0,
+                    count: 0
+                });
+            }
+            const journal = journalsMap.get(entry.journal_id);
+            journal.count++;
+            const amount = parseFloat(entry.montant) || 0;
+            if (entry.s.toUpperCase() !== 'C') {
+                journal.debit += amount;
+            } else {
+                journal.credit += amount;
+            }
+        });
+
+        // Get journal names
+        const journalIds = Array.from(journalsMap.keys());
+        const { data: journalsData, error: journalsError } = await supabase
+            .from('journals')
+            .select('id, code, name')
+            .in('id', journalIds);
+
+        if (journalsError) throw journalsError;
+
+        const journalNamesMap = new Map();
+        journalsData.forEach(j => journalNamesMap.set(j.id, `${j.code} - ${j.name}`));
+
+        // Convert to array
+        const centralizedData = Array.from(journalsMap.values())
+            .map(item => ({
+                ...item,
+                journal_name: journalNamesMap.get(item.journal_id) || 'Inconnu'
+            }))
+            .sort((a, b) => a.journal_name.localeCompare(b.journal_name));
+
+        // Calculate totals
+        const totalDebit = centralizedData.reduce((sum, item) => sum + item.debit, 0);
+        const totalCredit = centralizedData.reduce((sum, item) => sum + item.credit, 0);
+        const totalCount = centralizedData.reduce((sum, item) => sum + item.count, 0);
+
+        // Display report
+        const reportContent = document.getElementById('report-content');
+        let html = '<div style="text-align: center; font-weight: bold; margin-bottom: 15px; color: #FFFF00;">';
+        html += 'JOURNAL CENTRALISATEUR';
+        if (startDate || endDate) {
+            html += '<br>Période: ';
+            if (startDate) html += `du ${new Date(startDate).toLocaleDateString('fr-FR')} `;
+            if (endDate) html += `au ${new Date(endDate).toLocaleDateString('fr-FR')}`;
+        }
+        html += '</div>';
+
+        html += '<div class="table-header" style="border-bottom: 1px solid #00FF00; padding-bottom: 5px;">';
+        html += '<span style="display: inline-block; width: 30ch;">Journal</span>';
+        html += '<span style="display: inline-block; width: 12ch; text-align: center;">Nb écritures</span>';
+        html += '<span style="display: inline-block; width: 18ch; text-align: right;">Débit</span>';
+        html += '<span style="display: inline-block; width: 18ch; text-align: right;">Crédit</span>';
+        html += '</div>';
+
+        centralizedData.forEach(item => {
+            html += '<div class="table-row" style="padding: 2px 0;">';
+            html += `<span style="display: inline-block; width: 30ch;">${item.journal_name}</span>`;
+            html += `<span style="display: inline-block; width: 12ch; text-align: center;">${item.count}</span>`;
+            html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(item.debit)}</span>`;
+            html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(item.credit)}</span>`;
+            html += '</div>';
+        });
+
+        html += '<div style="border-top: 1px solid #00FF00; margin-top: 10px; padding-top: 5px; font-weight: bold;">';
+        html += `<span style="display: inline-block; width: 30ch;">TOTAUX</span>`;
+        html += `<span style="display: inline-block; width: 12ch; text-align: center;">${totalCount}</span>`;
+        html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(totalDebit)}</span>`;
+        html += `<span style="display: inline-block; width: 18ch; text-align: right;">${this.formatAmount(totalCredit)}</span>`;
+        html += '</div>';
+
+        reportContent.innerHTML = html;
+
+        // Store report data for export
+        this.currentReport = {
+            type: 'centralized',
+            data: centralizedData,
+            totals: { debit: totalDebit, credit: totalCredit, count: totalCount },
+            period: { startDate, endDate }
+        };
+
+        // Show export/print buttons
+        document.getElementById('export-report-btn').style.display = 'inline-block';
+        document.getElementById('print-report-btn').style.display = 'inline-block';
+
+        this.showMessage('Rapport généré avec succès !');
+    }
+
+    exportReport() {
+        if (!this.currentReport) {
+            this.showMessage('Aucun rapport à exporter.');
+            return;
+        }
+
+        let exportData = [];
+        let filename = '';
+
+        switch (this.currentReport.type) {
+            case 'balance':
+                exportData = this.currentReport.data.map(item => ({
+                    'Compte': item.account,
+                    'Libellé': item.label,
+                    'Débit': this.formatAmount(item.debit),
+                    'Crédit': this.formatAmount(item.credit),
+                    'Solde': this.formatAmount(item.balance)
+                }));
+                filename = `balance_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
+
+            case 'ledger':
+                exportData = this.currentReport.data.map(item => ({
+                    'Compte': item.compte,
+                    'Libellé': item.label,
+                    'Date': item.date,
+                    'Description': item.libelle,
+                    'Débit': this.formatAmount(item.debit),
+                    'Crédit': this.formatAmount(item.credit)
+                }));
+                filename = `grand_livre_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
+
+            case 'centralized':
+                exportData = this.currentReport.data.map(item => ({
+                    'Journal': item.journal_name,
+                    'Nombre écritures': item.count,
+                    'Débit': this.formatAmount(item.debit),
+                    'Crédit': this.formatAmount(item.credit)
+                }));
+                filename = `journal_centralisateur_${new Date().toISOString().slice(0, 10)}.csv`;
+                break;
+        }
+
+        this.exportToCSV(exportData, filename);
+    }
+
+    printReport() {
+        if (!this.currentReport) {
+            this.showMessage('Aucun rapport à imprimer.');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank');
+        const reportContent = document.getElementById('report-content').innerHTML;
+
+        const html = `
+            <html>
+                <head>
+                    <title>Rapport - ${this.selectedCompany.name}</title>
+                    <style>
+                        body {
+                            font-family: 'Courier New', monospace;
+                            padding: 20px;
+                        }
+                        .table-header {
+                            font-weight: bold;
+                            border-bottom: 1px solid #000;
+                            padding-bottom: 5px;
+                        }
+                        .table-row {
+                            padding: 2px 0;
+                        }
+                        @media print {
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>${this.selectedCompany.name}</h2>
+                    ${reportContent}
+                    <p style="margin-top: 30px;">Imprimé le: ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>
+                </body>
+            </html>
+        `;
+
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    }
+
+    // ===============================================
+    // Settings Functions
+    // ===============================================
+
+    async loadSettings() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load settings for the current company
+            const { data: settings, error } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                throw error;
+            }
+
+            // Populate accounting year settings
+            if (settings) {
+                document.getElementById('setting-year-start').value = settings.accounting_year_start || '';
+                document.getElementById('setting-year-end').value = settings.accounting_year_end || '';
+                document.getElementById('setting-year-closed').checked = settings.accounting_year_closed || false;
+
+                // Populate club information
+                document.getElementById('setting-club-name').value = settings.club_name || this.selectedCompany.name;
+                document.getElementById('setting-club-address').value = settings.club_address || '';
+                document.getElementById('setting-club-city').value = settings.club_city || '';
+                document.getElementById('setting-club-postal-code').value = settings.club_postal_code || '';
+                document.getElementById('setting-club-phone').value = settings.club_phone || '';
+                document.getElementById('setting-club-email').value = settings.club_email || '';
+
+                // Populate default accounts
+                document.getElementById('setting-default-bank').value = settings.default_bank_account || '';
+                document.getElementById('setting-default-cash').value = settings.default_cash_account || '';
+                document.getElementById('setting-default-result').value = settings.default_result_account || '';
+            } else {
+                // No settings yet, use company name as default
+                document.getElementById('setting-club-name').value = this.selectedCompany.name;
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            this.showMessage(`Erreur de chargement des paramètres: ${error.message}`);
+        }
+    }
+
+    async saveYearSettings() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        const yearStart = document.getElementById('setting-year-start').value;
+        const yearEnd = document.getElementById('setting-year-end').value;
+
+        if (!yearStart || !yearEnd) {
+            this.showMessage('Veuillez saisir les dates de début et fin d\'exercice');
+            return;
+        }
+
+        // Validate that end date is after start date
+        if (new Date(yearEnd) <= new Date(yearStart)) {
+            this.showMessage('La date de fin doit être postérieure à la date de début');
+            return;
+        }
+
+        try {
+            // Check if settings exist
+            const { data: existing } = await supabase
+                .from('company_settings')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (existing) {
+                // Update existing settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .update({
+                        accounting_year_start: yearStart,
+                        accounting_year_end: yearEnd,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('company_id', this.selectedCompany.id);
+
+                if (error) throw error;
+            } else {
+                // Insert new settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .insert({
+                        company_id: this.selectedCompany.id,
+                        accounting_year_start: yearStart,
+                        accounting_year_end: yearEnd
+                    });
+
+                if (error) throw error;
+            }
+
+            this.showMessage('Paramètres de l\'exercice sauvegardés');
+        } catch (error) {
+            console.error('Error saving year settings:', error);
+            this.showMessage(`Erreur de sauvegarde: ${error.message}`);
+        }
+    }
+
+    async saveClubSettings() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        const clubName = document.getElementById('setting-club-name').value;
+        const clubAddress = document.getElementById('setting-club-address').value;
+        const clubCity = document.getElementById('setting-club-city').value;
+        const clubPostalCode = document.getElementById('setting-club-postal-code').value;
+        const clubPhone = document.getElementById('setting-club-phone').value;
+        const clubEmail = document.getElementById('setting-club-email').value;
+
+        if (!clubName) {
+            this.showMessage('Veuillez saisir le nom du club');
+            return;
+        }
+
+        try {
+            // Check if settings exist
+            const { data: existing } = await supabase
+                .from('company_settings')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (existing) {
+                // Update existing settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .update({
+                        club_name: clubName,
+                        club_address: clubAddress,
+                        club_city: clubCity,
+                        club_postal_code: clubPostalCode,
+                        club_phone: clubPhone,
+                        club_email: clubEmail,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('company_id', this.selectedCompany.id);
+
+                if (error) throw error;
+            } else {
+                // Insert new settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .insert({
+                        company_id: this.selectedCompany.id,
+                        club_name: clubName,
+                        club_address: clubAddress,
+                        club_city: clubCity,
+                        club_postal_code: clubPostalCode,
+                        club_phone: clubPhone,
+                        club_email: clubEmail
+                    });
+
+                if (error) throw error;
+            }
+
+            this.showMessage('Informations du club sauvegardées');
+        } catch (error) {
+            console.error('Error saving club settings:', error);
+            this.showMessage(`Erreur de sauvegarde: ${error.message}`);
+        }
+    }
+
+    async saveDefaultAccounts() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        const defaultBank = document.getElementById('setting-default-bank').value;
+        const defaultCash = document.getElementById('setting-default-cash').value;
+        const defaultResult = document.getElementById('setting-default-result').value;
+
+        try {
+            // Check if settings exist
+            const { data: existing } = await supabase
+                .from('company_settings')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (existing) {
+                // Update existing settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .update({
+                        default_bank_account: defaultBank,
+                        default_cash_account: defaultCash,
+                        default_result_account: defaultResult,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('company_id', this.selectedCompany.id);
+
+                if (error) throw error;
+            } else {
+                // Insert new settings
+                const { error } = await supabase
+                    .from('company_settings')
+                    .insert({
+                        company_id: this.selectedCompany.id,
+                        default_bank_account: defaultBank,
+                        default_cash_account: defaultCash,
+                        default_result_account: defaultResult
+                    });
+
+                if (error) throw error;
+            }
+
+            this.showMessage('Comptes par défaut sauvegardés');
+        } catch (error) {
+            console.error('Error saving default accounts:', error);
+            this.showMessage(`Erreur de sauvegarde: ${error.message}`);
+        }
+    }
+
+    // ===============================================
+    // Year-End Processing Functions
+    // ===============================================
+
+    async loadYearEndInfo() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load settings to get year info
+            const { data: settings, error: settingsError } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (settingsError && settingsError.code !== 'PGRST116') {
+                throw settingsError;
+            }
+
+            // Display year period
+            const periodElement = document.getElementById('current-year-period');
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                const startDate = new Date(settings.accounting_year_start).toLocaleDateString('fr-FR');
+                const endDate = new Date(settings.accounting_year_end).toLocaleDateString('fr-FR');
+                periodElement.textContent = `${startDate} - ${endDate}`;
+
+                // Display year status
+                const statusElement = document.getElementById('current-year-status');
+                statusElement.textContent = settings.accounting_year_closed ? 'CLOS' : 'OUVERT';
+                statusElement.style.color = settings.accounting_year_closed ? '#FF0000' : '#00FF00';
+
+                // If year is closed, disable all buttons
+                if (settings.accounting_year_closed) {
+                    document.getElementById('calculate-result-btn').disabled = true;
+                    document.getElementById('generate-closing-entries-btn').disabled = true;
+                    document.getElementById('close-year-btn').disabled = true;
+                    this.showMessage('Exercice déjà clôturé');
+                }
+            } else {
+                periodElement.textContent = 'Non défini';
+                this.showMessage('Définissez d\'abord l\'exercice comptable dans Paramètres');
+                document.getElementById('calculate-result-btn').disabled = true;
+                document.getElementById('generate-closing-entries-btn').disabled = true;
+                document.getElementById('close-year-btn').disabled = true;
+                return;
+            }
+
+            // Count entries for the year
+            const { data: entries, error: entriesError } = await supabase
+                .from('journal_entries')
+                .select('id, s, montant, compte')
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', settings.accounting_year_start)
+                .lte('date', settings.accounting_year_end);
+
+            if (entriesError) throw entriesError;
+
+            document.getElementById('current-year-entries-count').textContent = entries ? entries.length : 0;
+
+            // Calculate result (revenues - expenses)
+            let result = 0;
+            if (entries) {
+                entries.forEach(entry => {
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    // Revenue accounts (7xxxxx): credit increases, debit decreases
+                    if (account.startsWith('7')) {
+                        result += isDebit ? -amount : amount;
+                    }
+                    // Expense accounts (6xxxxx): debit increases, credit decreases
+                    else if (account.startsWith('6')) {
+                        result += isDebit ? amount : -amount;
+                    }
+                });
+            }
+
+            document.getElementById('current-year-result').textContent = result.toFixed(2) + ' €';
+            document.getElementById('current-year-result').style.color = result >= 0 ? '#00FF00' : '#FF0000';
+
+        } catch (error) {
+            console.error('Error loading year-end info:', error);
+            this.showMessage(`Erreur de chargement: ${error.message}`);
+        }
+    }
+
+    async calculateYearResult() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        this.showMessage('Calcul du résultat en cours...');
+        await this.loadYearEndInfo();
+        this.showMessage('Résultat calculé');
+    }
+
+    async generateClosingEntries() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load settings
+            const { data: settings, error: settingsError } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (settingsError) throw settingsError;
+
+            if (!settings.accounting_year_start || !settings.accounting_year_end) {
+                this.showMessage('Exercice non défini dans les paramètres');
+                return;
+            }
+
+            if (settings.accounting_year_closed) {
+                this.showMessage('Exercice déjà clôturé');
+                return;
+            }
+
+            // Get OD journal for closing entries
+            const { data: odJournal, error: journalError } = await supabase
+                .from('journals')
+                .select('id')
+                .eq('company_id', this.selectedCompany.id)
+                .eq('code', 'OD')
+                .single();
+
+            if (journalError) {
+                this.showMessage('Journal OD non trouvé. Créez d\'abord un journal OD.');
+                return;
+            }
+
+            // Get all entries for the year
+            const { data: entries, error: entriesError } = await supabase
+                .from('journal_entries')
+                .select('compte, s, montant')
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', settings.accounting_year_start)
+                .lte('date', settings.accounting_year_end);
+
+            if (entriesError) throw entriesError;
+
+            // Calculate balances for revenue and expense accounts
+            const accountBalances = new Map();
+            entries.forEach(entry => {
+                const account = entry.compte;
+                const amount = parseFloat(entry.montant) || 0;
+                const isDebit = entry.s === 'D';
+
+                if (!accountBalances.has(account)) {
+                    accountBalances.set(account, { debit: 0, credit: 0 });
+                }
+
+                const balance = accountBalances.get(account);
+                if (isDebit) {
+                    balance.debit += amount;
+                } else {
+                    balance.credit += amount;
+                }
+            });
+
+            // Generate batch ID for closing entries
+            const batchId = `CLOTURE-${Date.now()}`;
+            const closingDate = settings.accounting_year_end;
+
+            // Prepare closing entries
+            const closingEntries = [];
+            let totalRevenues = 0;
+            let totalExpenses = 0;
+
+            // Close revenue accounts (7xxxxx) to result account
+            accountBalances.forEach((balance, account) => {
+                if (account.startsWith('7')) {
+                    const netBalance = balance.credit - balance.debit;
+                    if (netBalance !== 0) {
+                        // Debit revenue account to close it
+                        closingEntries.push({
+                            company_id: this.selectedCompany.id,
+                            journal_id: odJournal.id,
+                            date: closingDate,
+                            compte: account,
+                            s: 'D',
+                            montant: Math.abs(netBalance),
+                            libelle: 'Clôture exercice - Transfert au résultat',
+                            batch_id: batchId
+                        });
+                        totalRevenues += netBalance;
+                    }
+                }
+            });
+
+            // Close expense accounts (6xxxxx) to result account
+            accountBalances.forEach((balance, account) => {
+                if (account.startsWith('6')) {
+                    const netBalance = balance.debit - balance.credit;
+                    if (netBalance !== 0) {
+                        // Credit expense account to close it
+                        closingEntries.push({
+                            company_id: this.selectedCompany.id,
+                            journal_id: odJournal.id,
+                            date: closingDate,
+                            compte: account,
+                            s: 'C',
+                            montant: Math.abs(netBalance),
+                            libelle: 'Clôture exercice - Transfert au résultat',
+                            batch_id: batchId
+                        });
+                        totalExpenses += netBalance;
+                    }
+                }
+            });
+
+            // Calculate result
+            const result = totalRevenues - totalExpenses;
+            const resultAccount = settings.default_result_account || '120000';
+
+            // Add result entry
+            if (result !== 0) {
+                closingEntries.push({
+                    company_id: this.selectedCompany.id,
+                    journal_id: odJournal.id,
+                    date: closingDate,
+                    compte: resultAccount,
+                    s: result > 0 ? 'C' : 'D',
+                    montant: Math.abs(result),
+                    libelle: `Résultat de l'exercice ${new Date(settings.accounting_year_start).getFullYear()}`,
+                    batch_id: batchId
+                });
+            }
+
+            // Insert closing entries
+            if (closingEntries.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('journal_entries')
+                    .insert(closingEntries);
+
+                if (insertError) throw insertError;
+
+                this.showMessage(`${closingEntries.length} écritures de clôture générées. Résultat: ${result.toFixed(2)} €`);
+                await this.loadYearEndInfo();
+            } else {
+                this.showMessage('Aucune écriture à clôturer');
+            }
+
+        } catch (error) {
+            console.error('Error generating closing entries:', error);
+            this.showMessage(`Erreur de génération: ${error.message}`);
+        }
+    }
+
+    async closeYear() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        // Confirm action
+        const confirmed = confirm(
+            '⚠️ ATTENTION ⚠️\n\n' +
+            'La clôture de l\'exercice est IRRÉVERSIBLE.\n' +
+            'Vous ne pourrez plus modifier les écritures de cet exercice.\n\n' +
+            'Avez-vous :\n' +
+            '1. Calculé le résultat ?\n' +
+            '2. Généré les écritures de clôture ?\n' +
+            '3. Vérifié tous les comptes ?\n\n' +
+            'Confirmer la clôture définitive ?'
+        );
+
+        if (!confirmed) {
+            this.showMessage('Clôture annulée');
+            return;
+        }
+
+        try {
+            // Update settings to mark year as closed
+            const { error } = await supabase
+                .from('company_settings')
+                .update({
+                    accounting_year_closed: true,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('company_id', this.selectedCompany.id);
+
+            if (error) throw error;
+
+            this.showMessage('✓ Exercice clôturé définitivement');
+            await this.loadYearEndInfo();
+
+        } catch (error) {
+            console.error('Error closing year:', error);
+            this.showMessage(`Erreur de clôture: ${error.message}`);
+        }
+    }
+
+    // ===============================================
+    // Dashboard Functions
+    // ===============================================
+
+    async loadDashboard() {
+        if (!this.selectedCompany) {
+            this.showMessage('Aucune société sélectionnée');
+            return;
+        }
+
+        try {
+            // Load all data in parallel
+            await Promise.all([
+                this.loadDashboardFinancials(),
+                this.loadDashboardActivity(),
+                this.loadDashboardYearInfo(),
+                this.loadDashboardTopAccounts(),
+                this.loadDashboardMonthlyChart()
+            ]);
+
+            this.showMessage('Tableau de bord actualisé');
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            this.showMessage(`Erreur de chargement: ${error.message}`);
+        }
+    }
+
+    async loadDashboardFinancials() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Get all entries for the current year
+            let query = supabase
+                .from('journal_entries')
+                .select('compte, s, montant')
+                .eq('company_id', this.selectedCompany.id);
+
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                query = query
+                    .gte('date', settings.accounting_year_start)
+                    .lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entries, error } = await query;
+            if (error) throw error;
+
+            // Calculate financials
+            let tresorerie = 0;
+            let produits = 0;
+            let charges = 0;
+
+            if (entries) {
+                entries.forEach(entry => {
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    // Trésorerie: accounts 512xxx (bank) and 53xxx (cash)
+                    if (account.startsWith('512') || account.startsWith('53')) {
+                        tresorerie += isDebit ? amount : -amount;
+                    }
+
+                    // Produits: accounts 7xxxxx
+                    if (account.startsWith('7')) {
+                        produits += isDebit ? -amount : amount;
+                    }
+
+                    // Charges: accounts 6xxxxx
+                    if (account.startsWith('6')) {
+                        charges += isDebit ? amount : -amount;
+                    }
+                });
+            }
+
+            const resultat = produits - charges;
+
+            // Update UI
+            document.getElementById('dashboard-tresorerie').textContent = tresorerie.toFixed(2) + ' €';
+            document.getElementById('dashboard-tresorerie').style.color = tresorerie >= 0 ? '#00FF00' : '#FF0000';
+
+            document.getElementById('dashboard-resultat').textContent = resultat.toFixed(2) + ' €';
+            document.getElementById('dashboard-resultat').style.color = resultat >= 0 ? '#00FF00' : '#FF0000';
+
+            document.getElementById('dashboard-produits').textContent = produits.toFixed(2) + ' €';
+            document.getElementById('dashboard-charges').textContent = charges.toFixed(2) + ' €';
+
+        } catch (error) {
+            console.error('Error loading dashboard financials:', error);
+        }
+    }
+
+    async loadDashboardActivity() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Count entries this month
+            const now = new Date();
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+            const { data: entriesMonth, error: errorMonth } = await supabase
+                .from('journal_entries')
+                .select('id', { count: 'exact' })
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', firstDayOfMonth.toISOString().split('T')[0])
+                .lte('date', lastDayOfMonth.toISOString().split('T')[0]);
+
+            if (errorMonth) throw errorMonth;
+
+            // Count entries this year
+            let queryYear = supabase
+                .from('journal_entries')
+                .select('id', { count: 'exact' })
+                .eq('company_id', this.selectedCompany.id);
+
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                queryYear = queryYear
+                    .gte('date', settings.accounting_year_start)
+                    .lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entriesYear, error: errorYear } = await queryYear;
+            if (errorYear) throw errorYear;
+
+            // Count accounts
+            const { data: accounts, error: errorAccounts } = await supabase
+                .from('accounts')
+                .select('id', { count: 'exact' })
+                .eq('user_id', (await supabase.auth.getUser()).data.user.id);
+
+            if (errorAccounts) throw errorAccounts;
+
+            // Count journals
+            const { data: journals, error: errorJournals } = await supabase
+                .from('journals')
+                .select('id', { count: 'exact' })
+                .eq('company_id', this.selectedCompany.id);
+
+            if (errorJournals) throw errorJournals;
+
+            // Update UI
+            document.getElementById('dashboard-entries-month').textContent = entriesMonth ? entriesMonth.length : 0;
+            document.getElementById('dashboard-entries-year').textContent = entriesYear ? entriesYear.length : 0;
+            document.getElementById('dashboard-accounts-count').textContent = accounts ? accounts.length : 0;
+            document.getElementById('dashboard-journals-count').textContent = journals ? journals.length : 0;
+
+        } catch (error) {
+            console.error('Error loading dashboard activity:', error);
+        }
+    }
+
+    async loadDashboardYearInfo() {
+        try {
+            // Load settings
+            const { data: settings, error } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error;
+
+            // Clear any previous alerts
+            document.getElementById('dashboard-alerts').innerHTML = '';
+
+            if (!settings || !settings.accounting_year_start || !settings.accounting_year_end) {
+                // No year defined - show alert
+                document.getElementById('dashboard-year-period').textContent = 'Non défini';
+                document.getElementById('dashboard-year-status').textContent = 'N/A';
+                document.getElementById('dashboard-year-days-left').textContent = '-';
+                document.getElementById('dashboard-year-progress').textContent = '-';
+
+                // Show alert
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = 'border: 1px solid #FF0000; padding: 15px; background-color: #330000; margin-bottom: 10px;';
+                alertDiv.innerHTML = `
+                    <div style="color: #FF0000; font-weight: bold; margin-bottom: 5px;">⚠️ ALERTE</div>
+                    <div style="color: #FFFF00;">Exercice comptable non défini. Allez dans Paramètres pour le configurer.</div>
+                `;
+                document.getElementById('dashboard-alerts').appendChild(alertDiv);
+                return;
+            }
+
+            // Display year info
+            const startDate = new Date(settings.accounting_year_start);
+            const endDate = new Date(settings.accounting_year_end);
+            const now = new Date();
+
+            document.getElementById('dashboard-year-period').textContent =
+                `${startDate.toLocaleDateString('fr-FR')} - ${endDate.toLocaleDateString('fr-FR')}`;
+
+            document.getElementById('dashboard-year-status').textContent =
+                settings.accounting_year_closed ? 'CLOS' : 'OUVERT';
+            document.getElementById('dashboard-year-status').style.color =
+                settings.accounting_year_closed ? '#FF0000' : '#00FF00';
+
+            // Calculate days left
+            const daysLeft = Math.floor((endDate - now) / (1000 * 60 * 60 * 24));
+            document.getElementById('dashboard-year-days-left').textContent =
+                daysLeft > 0 ? `${daysLeft} jours` : 'Exercice terminé';
+            document.getElementById('dashboard-year-days-left').style.color =
+                daysLeft > 30 ? '#00FF00' : (daysLeft > 0 ? '#FFFF00' : '#FF0000');
+
+            // Calculate progress
+            const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const elapsedDays = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+            const progress = Math.min(100, Math.max(0, Math.floor((elapsedDays / totalDays) * 100)));
+            document.getElementById('dashboard-year-progress').textContent = `${progress}%`;
+
+            // Show alert if year is almost over
+            if (daysLeft > 0 && daysLeft <= 30 && !settings.accounting_year_closed) {
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = 'border: 1px solid #FFFF00; padding: 15px; background-color: #332200; margin-bottom: 10px;';
+                alertDiv.innerHTML = `
+                    <div style="color: #FFFF00; font-weight: bold; margin-bottom: 5px;">⚠️ ATTENTION</div>
+                    <div style="color: #FFFF00;">L'exercice comptable se termine dans ${daysLeft} jours. Préparez la clôture.</div>
+                `;
+                document.getElementById('dashboard-alerts').appendChild(alertDiv);
+            }
+
+            // Show alert if year is closed
+            if (settings.accounting_year_closed) {
+                const alertDiv = document.createElement('div');
+                alertDiv.style.cssText = 'border: 1px solid #FF0000; padding: 15px; background-color: #330000; margin-bottom: 10px;';
+                alertDiv.innerHTML = `
+                    <div style="color: #FF0000; font-weight: bold; margin-bottom: 5px;">🔒 INFO</div>
+                    <div style="color: #FFFF00;">Exercice clôturé. Configurez le nouvel exercice dans Paramètres.</div>
+                `;
+                document.getElementById('dashboard-alerts').appendChild(alertDiv);
+            }
+
+        } catch (error) {
+            console.error('Error loading dashboard year info:', error);
+        }
+    }
+
+    async loadDashboardTopAccounts() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Get all entries for the current year
+            let query = supabase
+                .from('journal_entries')
+                .select('compte, s, montant')
+                .eq('company_id', this.selectedCompany.id);
+
+            if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                query = query
+                    .gte('date', settings.accounting_year_start)
+                    .lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entries, error } = await query;
+            if (error) throw error;
+
+            // Calculate balances by account
+            const accountBalances = new Map();
+
+            if (entries) {
+                entries.forEach(entry => {
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    if (!accountBalances.has(account)) {
+                        accountBalances.set(account, 0);
+                    }
+
+                    // For charges (6xxxxx): debit increases
+                    if (account.startsWith('6')) {
+                        accountBalances.set(account, accountBalances.get(account) + (isDebit ? amount : -amount));
+                    }
+
+                    // For produits (7xxxxx): credit increases
+                    if (account.startsWith('7')) {
+                        accountBalances.set(account, accountBalances.get(account) + (isDebit ? -amount : amount));
+                    }
+                });
+            }
+
+            // Get account labels
+            const { data: accounts, error: accountsError } = await supabase
+                .from('accounts')
+                .select('account_number, label')
+                .eq('user_id', (await supabase.auth.getUser()).data.user.id);
+
+            if (accountsError) throw accountsError;
+
+            const accountLabels = new Map();
+            if (accounts) {
+                accounts.forEach(acc => {
+                    accountLabels.set(acc.account_number, acc.label);
+                });
+            }
+
+            // Separate charges and produits
+            const charges = [];
+            const produits = [];
+
+            accountBalances.forEach((balance, account) => {
+                if (account.startsWith('6') && balance > 0) {
+                    charges.push({ account, balance, label: accountLabels.get(account) || '' });
+                }
+                if (account.startsWith('7') && balance > 0) {
+                    produits.push({ account, balance, label: accountLabels.get(account) || '' });
+                }
+            });
+
+            // Sort and take top 5
+            charges.sort((a, b) => b.balance - a.balance);
+            produits.sort((a, b) => b.balance - a.balance);
+
+            const topCharges = charges.slice(0, 5);
+            const topProduits = produits.slice(0, 5);
+
+            // Display top charges
+            const chargesHtml = topCharges.length > 0
+                ? topCharges.map((item, index) => {
+                    const labelShort = item.label.length > 30 ? item.label.substring(0, 30) + '...' : item.label;
+                    return `<div style="margin-bottom: 5px;">
+                        <span style="color: #888;">${index + 1}.</span>
+                        <span style="color: #FFFF00;">${item.account}</span>
+                        <span style="color: #888;"> - ${labelShort}</span>
+                        <br>
+                        <span style="color: #FF6666; margin-left: 2ch;">${item.balance.toFixed(2)} €</span>
+                    </div>`;
+                }).join('')
+                : '<div style="color: #888;">Aucune charge enregistrée</div>';
+
+            document.getElementById('dashboard-top-charges').innerHTML = chargesHtml;
+
+            // Display top produits
+            const produitsHtml = topProduits.length > 0
+                ? topProduits.map((item, index) => {
+                    const labelShort = item.label.length > 30 ? item.label.substring(0, 30) + '...' : item.label;
+                    return `<div style="margin-bottom: 5px;">
+                        <span style="color: #888;">${index + 1}.</span>
+                        <span style="color: #FFFF00;">${item.account}</span>
+                        <span style="color: #888;"> - ${labelShort}</span>
+                        <br>
+                        <span style="color: #00FF00; margin-left: 2ch;">${item.balance.toFixed(2)} €</span>
+                    </div>`;
+                }).join('')
+                : '<div style="color: #888;">Aucun produit enregistré</div>';
+
+            document.getElementById('dashboard-top-produits').innerHTML = produitsHtml;
+
+            // Create doughnut charts
+            this.createChargesPieChart(topCharges);
+            this.createProduitsPieChart(topProduits);
+
+        } catch (error) {
+            console.error('Error loading top accounts:', error);
+        }
+    }
+
+    createChargesPieChart(topCharges) {
+        try {
+            // Destroy existing chart if it exists
+            if (this.chargesPieChart) {
+                this.chargesPieChart.destroy();
+            }
+
+            if (topCharges.length === 0) return;
+
+            const ctx = document.getElementById('charges-pie-chart');
+            if (ctx) {
+                // Generate colors
+                const colors = [
+                    'rgba(255, 102, 102, 0.8)',
+                    'rgba(255, 153, 102, 0.8)',
+                    'rgba(255, 204, 102, 0.8)',
+                    'rgba(255, 153, 153, 0.8)',
+                    'rgba(255, 204, 153, 0.8)'
+                ];
+
+                this.chargesPieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topCharges.map(item => item.account + ' - ' + (item.label.length > 20 ? item.label.substring(0, 20) + '...' : item.label)),
+                        datasets: [{
+                            data: topCharges.map(item => item.balance),
+                            backgroundColor: colors,
+                            borderWidth: 1,
+                            borderColor: '#333'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: {
+                                    color: '#CCCCCC',
+                                    font: {
+                                        size: 10,
+                                        family: "'Courier New', monospace"
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#FF6666',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#FF6666',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return label + ': ' + value.toFixed(2) + ' € (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error creating charges pie chart:', error);
+        }
+    }
+
+    createProduitsPieChart(topProduits) {
+        try {
+            // Destroy existing chart if it exists
+            if (this.produitsPieChart) {
+                this.produitsPieChart.destroy();
+            }
+
+            if (topProduits.length === 0) return;
+
+            const ctx = document.getElementById('produits-pie-chart');
+            if (ctx) {
+                // Generate colors
+                const colors = [
+                    'rgba(0, 255, 0, 0.8)',
+                    'rgba(102, 255, 102, 0.8)',
+                    'rgba(153, 255, 153, 0.8)',
+                    'rgba(102, 255, 153, 0.8)',
+                    'rgba(153, 255, 204, 0.8)'
+                ];
+
+                this.produitsPieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topProduits.map(item => item.account + ' - ' + (item.label.length > 20 ? item.label.substring(0, 20) + '...' : item.label)),
+                        datasets: [{
+                            data: topProduits.map(item => item.balance),
+                            backgroundColor: colors,
+                            borderWidth: 1,
+                            borderColor: '#333'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: {
+                                    color: '#CCCCCC',
+                                    font: {
+                                        size: 10,
+                                        family: "'Courier New', monospace"
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00FF00',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#00FF00',
+                                borderWidth: 1,
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return label + ': ' + value.toFixed(2) + ' € (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error creating produits pie chart:', error);
+        }
+    }
+
+    async loadDashboardMonthlyChart() {
+        try {
+            // Load settings to get year dates
+            const { data: settings } = await supabase
+                .from('company_settings')
+                .select('*')
+                .eq('company_id', this.selectedCompany.id)
+                .single();
+
+            // Get entries for the last 6 months
+            const now = new Date();
+            const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+            let query = supabase
+                .from('journal_entries')
+                .select('date, compte, s, montant')
+                .eq('company_id', this.selectedCompany.id)
+                .gte('date', sixMonthsAgo.toISOString().split('T')[0]);
+
+            if (settings && settings.accounting_year_end) {
+                query = query.lte('date', settings.accounting_year_end);
+            }
+
+            const { data: entries, error } = await query;
+            if (error) throw error;
+
+            // Group by month
+            const monthlyData = new Map();
+
+            for (let i = 0; i < 6; i++) {
+                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                monthlyData.set(key, { produits: 0, charges: 0, month: date });
+            }
+
+            if (entries) {
+                entries.forEach(entry => {
+                    const date = new Date(entry.date);
+                    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    const account = entry.compte || '';
+                    const amount = parseFloat(entry.montant) || 0;
+                    const isDebit = entry.s === 'D';
+
+                    if (monthlyData.has(key)) {
+                        const monthData = monthlyData.get(key);
+
+                        // Produits (7xxxxx)
+                        if (account.startsWith('7')) {
+                            monthData.produits += isDebit ? -amount : amount;
+                        }
+
+                        // Charges (6xxxxx)
+                        if (account.startsWith('6')) {
+                            monthData.charges += isDebit ? amount : -amount;
+                        }
+                    }
+                });
+            }
+
+            // Sort by date
+            const sortedMonths = Array.from(monthlyData.values()).sort((a, b) => a.month - b.month);
+
+            // Prepare data for Chart.js
+            const labels = sortedMonths.map(data =>
+                data.month.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+            );
+            const produitsData = sortedMonths.map(data => data.produits);
+            const chargesData = sortedMonths.map(data => data.charges);
+
+            // Destroy existing chart if it exists
+            if (this.monthlyEvolutionChart) {
+                this.monthlyEvolutionChart.destroy();
+            }
+
+            // Create line chart
+            const ctx = document.getElementById('monthly-evolution-chart');
+            if (ctx) {
+                this.monthlyEvolutionChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Produits',
+                                data: produitsData,
+                                borderColor: '#00FF00',
+                                backgroundColor: 'rgba(0, 255, 0, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 2,
+                                pointBackgroundColor: '#00FF00',
+                                pointBorderColor: '#003300',
+                                pointRadius: 4
+                            },
+                            {
+                                label: 'Charges',
+                                data: chargesData,
+                                borderColor: '#FF6666',
+                                backgroundColor: 'rgba(255, 102, 102, 0.2)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 2,
+                                pointBackgroundColor: '#FF6666',
+                                pointBorderColor: '#330000',
+                                pointRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#CCCCCC',
+                                    font: {
+                                        family: "'Courier New', monospace",
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00FF00',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#00FF00',
+                                borderWidth: 1,
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' €';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    },
+                                    callback: function(value) {
+                                        return value.toFixed(0) + ' €';
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Also create comparison bar chart
+            this.createMonthlyComparisonChart(labels, produitsData, chargesData);
+
+        } catch (error) {
+            console.error('Error loading monthly chart:', error);
+        }
+    }
+
+    createMonthlyComparisonChart(labels, produitsData, chargesData) {
+        try {
+            // Destroy existing chart if it exists
+            if (this.monthlyComparisonChart) {
+                this.monthlyComparisonChart.destroy();
+            }
+
+            const ctx = document.getElementById('monthly-comparison-chart');
+            if (ctx) {
+                this.monthlyComparisonChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Produits',
+                                data: produitsData,
+                                backgroundColor: 'rgba(0, 255, 0, 0.6)',
+                                borderColor: '#00FF00',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Charges',
+                                data: chargesData,
+                                backgroundColor: 'rgba(255, 102, 102, 0.6)',
+                                borderColor: '#FF6666',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#CCCCCC',
+                                    font: {
+                                        family: "'Courier New', monospace",
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00FF00',
+                                bodyColor: '#FFFFFF',
+                                borderColor: '#00FF00',
+                                borderWidth: 1,
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' €';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#00FF00',
+                                    font: {
+                                        family: "'Courier New', monospace"
+                                    },
+                                    callback: function(value) {
+                                        return value.toFixed(0) + ' €';
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 255, 0, 0.1)',
+                                    borderColor: '#006600'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error creating comparison chart:', error);
+        }
     }
 }
 
