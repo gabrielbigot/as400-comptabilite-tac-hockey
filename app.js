@@ -3385,12 +3385,16 @@ console.log("Initializing AS400App");
 
     async loadDashboardFinancials() {
         try {
+            console.log('📊 Loading dashboard financials...');
+
             // Load settings to get year dates
             const { data: settings } = await supabase
                 .from('company_settings')
                 .select('*')
                 .eq('company_id', this.selectedCompany.id)
                 .single();
+
+            console.log('⚙️ Settings loaded:', settings);
 
             // Get all entries for the current year
             let query = supabase
@@ -3399,13 +3403,21 @@ console.log("Initializing AS400App");
                 .eq('company_id', this.selectedCompany.id);
 
             if (settings && settings.accounting_year_start && settings.accounting_year_end) {
+                console.log('📅 Filtering by date range:', settings.accounting_year_start, 'to', settings.accounting_year_end);
                 query = query
                     .gte('date', settings.accounting_year_start)
                     .lte('date', settings.accounting_year_end);
+            } else {
+                console.log('⚠️ No accounting year defined, loading all entries');
             }
 
             const { data: entries, error } = await query;
             if (error) throw error;
+
+            console.log('📝 Entries loaded:', entries ? entries.length : 0, 'entries');
+            if (entries && entries.length > 0) {
+                console.log('Sample entry:', entries[0]);
+            }
 
             // Calculate financials
             let tresorerie = 0;
@@ -3436,6 +3448,12 @@ console.log("Initializing AS400App");
             }
 
             const resultat = produits - charges;
+
+            console.log('💰 Calculations:');
+            console.log('  - Trésorerie:', tresorerie.toFixed(2), '€');
+            console.log('  - Produits:', produits.toFixed(2), '€');
+            console.log('  - Charges:', charges.toFixed(2), '€');
+            console.log('  - Résultat:', resultat.toFixed(2), '€');
 
             // Update UI
             document.getElementById('dashboard-tresorerie').textContent = tresorerie.toFixed(2) + ' €';
