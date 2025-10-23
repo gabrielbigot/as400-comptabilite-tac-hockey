@@ -553,6 +553,177 @@
         </div>
     </div>
 
+    <!-- Écran Paramètres -->
+    <div id="settings-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div style="font-weight: bold; color: #FFFF00;">PARAMÈTRES DE LA COMPTABILITÉ</div>
+            <br>
+
+            <!-- Paramètres de l'exercice comptable -->
+            <div style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 10px;">Exercice Comptable</div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Date de début d'exercice :</span>
+                    <input type="date" id="setting-year-start" class="field-input" style="width: 15ch;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Date de fin d'exercice :</span>
+                    <input type="date" id="setting-year-end" class="field-input" style="width: 15ch;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Exercice clôturé :</span>
+                    <input type="checkbox" id="setting-year-closed" disabled>
+                    <span id="setting-year-status" style="margin-left: 10px; color: #FFFF00;"></span>
+                </div>
+                <button id="save-year-settings-btn" class="btn">Enregistrer les dates d'exercice</button>
+            </div>
+
+            <!-- Informations du club -->
+            <div style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 10px;">Informations du Club</div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Nom du club :</span>
+                    <input type="text" id="setting-club-name" class="field-input" style="width: 40ch;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Adresse :</span>
+                    <input type="text" id="setting-club-address" class="field-input" style="width: 40ch;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Code postal :</span>
+                    <input type="text" id="setting-club-zipcode" class="field-input" style="width: 10ch;">
+                    <span style="margin-left: 10px;">Ville :</span>
+                    <input type="text" id="setting-club-city" class="field-input" style="width: 25ch;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Téléphone :</span>
+                    <input type="text" id="setting-club-phone" class="field-input" style="width: 20ch;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Email :</span>
+                    <input type="email" id="setting-club-email" class="field-input" style="width: 40ch;">
+                </div>
+                <button id="save-club-settings-btn" class="btn">Enregistrer les informations</button>
+            </div>
+
+            <!-- Comptes par défaut -->
+            <div style="border: 1px solid #00FF00; padding: 15px;">
+                <div style="font-weight: bold; margin-bottom: 10px;">Comptes par Défaut</div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Compte banque :</span>
+                    <input type="text" id="setting-default-bank" class="field-input" style="width: 10ch;" placeholder="512000">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Compte caisse :</span>
+                    <input type="text" id="setting-default-cash" class="field-input" style="width: 10ch;" placeholder="530000">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <span style="display: inline-block; width: 25ch;">Compte résultat :</span>
+                    <input type="text" id="setting-default-result" class="field-input" style="width: 10ch;" placeholder="120000">
+                </div>
+                <button id="save-default-accounts-btn" class="btn">Enregistrer les comptes</button>
+            </div>
+
+            <div class="footer-container">
+                <div class="status-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Traitements Fin d'Exercice -->
+    <div id="year-end-screen" class="screen">
+        <div class="toolbar">
+            <button class="toolbar-btn">About</button>
+            <button class="toolbar-btn">Help</button>
+        </div>
+
+        <div class="terminal-content">
+            <div class="header-new">
+                <div class="breadcrumb"></div>
+                <div class="datetime">
+                    <span class="date"></span>
+                    <span class="time"></span>
+                </div>
+            </div>
+            <br>
+            <div style="font-weight: bold; color: #FFFF00;">TRAITEMENTS FIN D'EXERCICE</div>
+            <br>
+
+            <!-- Informations sur l'exercice -->
+            <div id="year-end-info" style="border: 1px solid #00FF00; padding: 15px; margin-bottom: 20px;">
+                <div style="font-weight: bold; margin-bottom: 10px;">Informations sur l'exercice en cours</div>
+                <div style="margin-bottom: 5px;">
+                    <span style="display: inline-block; width: 30ch;">Période :</span>
+                    <span id="current-year-period" style="color: #FFFF00;"></span>
+                </div>
+                <div style="margin-bottom: 5px;">
+                    <span style="display: inline-block; width: 30ch;">Statut :</span>
+                    <span id="current-year-status-display" style="color: #FFFF00;"></span>
+                </div>
+                <div style="margin-bottom: 5px;">
+                    <span style="display: inline-block; width: 30ch;">Nombre d'écritures :</span>
+                    <span id="current-year-entries-count" style="color: #FFFF00;"></span>
+                </div>
+                <div style="margin-bottom: 5px;">
+                    <span style="display: inline-block; width: 30ch;">Résultat de l'exercice :</span>
+                    <span id="current-year-result" style="color: #FFFF00;"></span>
+                </div>
+            </div>
+
+            <!-- Avertissement -->
+            <div style="border: 1px solid #FFFF00; padding: 15px; margin-bottom: 20px; background-color: #222;">
+                <div style="color: #FFFF00; font-weight: bold; margin-bottom: 10px;">⚠️ ATTENTION</div>
+                <div style="color: #FFFF00;">
+                    La clôture de l'exercice est une opération définitive qui :
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Verrouille toutes les écritures de l'exercice</li>
+                        <li>Calcule le résultat de l'exercice</li>
+                        <li>Génère les écritures de report à nouveau</li>
+                        <li>Crée le nouvel exercice comptable</li>
+                    </ul>
+                    Cette opération ne peut pas être annulée facilement.
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="border: 1px solid #00FF00; padding: 15px;">
+                <div style="font-weight: bold; margin-bottom: 15px;">Actions disponibles</div>
+
+                <div style="margin-bottom: 20px;">
+                    <button id="calculate-result-btn" class="btn" style="min-width: 40ch;">1. Calculer le résultat de l'exercice</button>
+                    <div style="margin-top: 5px; color: #888; font-size: 0.9em;">Calcule le résultat sans modifier les écritures</div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <button id="generate-closing-entries-btn" class="btn" style="min-width: 40ch;">2. Générer les écritures de clôture</button>
+                    <div style="margin-top: 5px; color: #888; font-size: 0.9em;">Crée les écritures de transfert au compte résultat</div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <button id="close-year-btn" class="btn" style="min-width: 40ch; background-color: #661100; border-color: #FF0000;">3. Clôturer définitivement l'exercice</button>
+                    <div style="margin-top: 5px; color: #FF0000; font-size: 0.9em;">⚠️ Opération irréversible - Verrouille l'exercice et crée le report à nouveau</div>
+                </div>
+            </div>
+
+            <div class="footer-container">
+                <div class="status-bar"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Écran Liste des Lots -->
     <div id="batches-screen" class="screen">
         <div class="toolbar">

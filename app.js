@@ -444,6 +444,12 @@ console.log("Initializing AS400App");
             case '4':
                 this.showScreen('reports-screen', [...basePath, 'Éditions']);
                 break;
+            case '5':
+                this.showScreen('settings-screen', [...basePath, 'Paramètres']);
+                break;
+            case '6':
+                this.showScreen('year-end-screen', [...basePath, 'Traitements fin exercice']);
+                break;
             default:
                 this.showMessage('Option invalide');
         }
@@ -566,6 +572,12 @@ console.log("Initializing AS400App");
             }
             if (screenId === 'reports-screen') {
                 this.initializeReportsScreen();
+            }
+            if (screenId === 'settings-screen') {
+                this.loadSettings();
+            }
+            if (screenId === 'year-end-screen') {
+                this.loadYearEndInfo();
             }
             if (screenId === 'entry-input-screen') {
                 document.getElementById('date-comptable').value = '';
