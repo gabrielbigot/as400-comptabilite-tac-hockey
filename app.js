@@ -13,6 +13,13 @@ class AS400App {
         this.refreshCallback = null; // Pour rafraîchir la vue après une modification
         this.displayedEntries = []; // Pour stocker les écritures actuellement affichées
         this.currentReport = null; // Pour stocker les données du rapport actuel
+
+        // Chart.js instances
+        this.monthlyEvolutionChart = null;
+        this.chargesPieChart = null;
+        this.produitsPieChart = null;
+        this.monthlyComparisonChart = null;
+
         this.init();
     }
 
@@ -3711,8 +3718,140 @@ console.log("Initializing AS400App");
 
             document.getElementById('dashboard-top-produits').innerHTML = produitsHtml;
 
+            // Create doughnut charts
+            this.createChargesPieChart(topCharges);
+            this.createProduitsPieChart(topProduits);
+
         } catch (error) {
             console.error('Error loading top accounts:', error);
+        }
+    }
+
+    createChargesPieChart(topCharges) {
+        try {
+            // Destroy existing chart if it exists
+            if (this.chargesPieChart) {
+                this.chargesPieChart.destroy();
+            }
+
+            if (topCharges.length === 0) return;
+
+            const ctx = document.getElementById('charges-pie-chart');
+            if (ctx) {
+                // Generate colors
+                const colors = [
+                    'rgba(255, 102, 102, 0.8)',
+                    'rgba(255, 153, 102, 0.8)',
+                    'rgba(255, 204, 102, 0.8)',
+                    'rgba(255, 153, 153, 0.8)',
+                    'rgba(255, 204, 153, 0.8)'
+                ];
+
+                this.chargesPieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topCharges.map(item => item.account + ' - ' + (item.label.length > 20 ? item.label.substring(0, 20) + '...' : item.label)),
+                        datasets: [{
+                            data: topCharges.map(item => item.balance),
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: '#000'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        size: 10
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return label + ': ' + value.toFixed(2) + ' € (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error creating charges pie chart:', error);
+        }
+    }
+
+    createProduitsPieChart(topProduits) {
+        try {
+            // Destroy existing chart if it exists
+            if (this.produitsPieChart) {
+                this.produitsPieChart.destroy();
+            }
+
+            if (topProduits.length === 0) return;
+
+            const ctx = document.getElementById('produits-pie-chart');
+            if (ctx) {
+                // Generate colors
+                const colors = [
+                    'rgba(0, 255, 0, 0.8)',
+                    'rgba(102, 255, 102, 0.8)',
+                    'rgba(153, 255, 153, 0.8)',
+                    'rgba(102, 255, 153, 0.8)',
+                    'rgba(153, 255, 204, 0.8)'
+                ];
+
+                this.produitsPieChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: topProduits.map(item => item.account + ' - ' + (item.label.length > 20 ? item.label.substring(0, 20) + '...' : item.label)),
+                        datasets: [{
+                            data: topProduits.map(item => item.balance),
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: '#000'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        size: 10
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return label + ': ' + value.toFixed(2) + ' € (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error creating produits pie chart:', error);
         }
     }
 
@@ -3778,35 +3917,149 @@ console.log("Initializing AS400App");
             // Sort by date
             const sortedMonths = Array.from(monthlyData.values()).sort((a, b) => a.month - b.month);
 
-            // Find max value for scaling
-            const maxValue = Math.max(...sortedMonths.map(m => Math.max(m.produits, m.charges)));
-            const scale = maxValue > 0 ? 40 / maxValue : 1; // 40 chars max width
+            // Prepare data for Chart.js
+            const labels = sortedMonths.map(data =>
+                data.month.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+            );
+            const produitsData = sortedMonths.map(data => data.produits);
+            const chargesData = sortedMonths.map(data => data.charges);
 
-            // Generate ASCII chart
-            let chartHtml = '<div style="line-height: 1.5;">';
+            // Destroy existing chart if it exists
+            if (this.monthlyEvolutionChart) {
+                this.monthlyEvolutionChart.destroy();
+            }
 
-            sortedMonths.forEach(data => {
-                const monthName = data.month.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
-                const produitsBar = '█'.repeat(Math.floor(data.produits * scale));
-                const chargesBar = '█'.repeat(Math.floor(data.charges * scale));
+            // Create line chart
+            const ctx = document.getElementById('monthly-evolution-chart');
+            if (ctx) {
+                this.monthlyEvolutionChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Produits',
+                                data: produitsData,
+                                borderColor: '#00FF00',
+                                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Charges',
+                                data: chargesData,
+                                borderColor: '#FF6666',
+                                backgroundColor: 'rgba(255, 102, 102, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' €';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toFixed(0) + ' €';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
 
-                chartHtml += `
-                    <div style="margin-bottom: 10px;">
-                        <div style="color: #888;">${monthName}</div>
-                        <div style="color: #00FF00;">Prod: ${produitsBar} ${data.produits.toFixed(0)} €</div>
-                        <div style="color: #FF6666;">Chrg: ${chargesBar} ${data.charges.toFixed(0)} €</div>
-                    </div>
-                `;
-            });
-
-            chartHtml += '</div>';
-
-            document.getElementById('dashboard-monthly-chart').innerHTML = chartHtml;
+            // Also create comparison bar chart
+            this.createMonthlyComparisonChart(labels, produitsData, chargesData);
 
         } catch (error) {
             console.error('Error loading monthly chart:', error);
-            document.getElementById('dashboard-monthly-chart').innerHTML =
-                '<div style="color: #FF0000;">Erreur de chargement du graphique</div>';
+        }
+    }
+
+    createMonthlyComparisonChart(labels, produitsData, chargesData) {
+        try {
+            // Destroy existing chart if it exists
+            if (this.monthlyComparisonChart) {
+                this.monthlyComparisonChart.destroy();
+            }
+
+            const ctx = document.getElementById('monthly-comparison-chart');
+            if (ctx) {
+                this.monthlyComparisonChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Produits',
+                                data: produitsData,
+                                backgroundColor: 'rgba(0, 255, 0, 0.7)',
+                                borderColor: '#00FF00',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Charges',
+                                data: chargesData,
+                                backgroundColor: 'rgba(255, 102, 102, 0.7)',
+                                borderColor: '#FF6666',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' €';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toFixed(0) + ' €';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error creating comparison chart:', error);
         }
     }
 }
